@@ -1,0 +1,14 @@
+{
+  "name": "RPG Unleashed Notes",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Campaign notes, quests, objectives, places, and people for RPG Unleashed.",
+  "author": "LotusChildArt",
+  "action": {
+    "title": "RPG Unleashed Notes",
+    "icon": "https://rpgunleashednotes.onrender.com/icons/icon-192.png",
+    "popover": "https://rpgunleashednotes.onrender.com/",
+    "height": 720,
+    "width": 550
+  }
+}
