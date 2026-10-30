@@ -164,7 +164,7 @@ $(target).querySelectorAll('[data-thread-delete-reply]').forEach(b=>b.onclick=()
 let relationshipEditMode=false;
 function inverseRelationship(label){
  const x=label.trim().toLowerCase();
- const inverse={'parent':'Child','child':'Parent','mother':'Child','father':'Child','son':'Parent','daughter':'Parent','guardian':'Ward','ward':'Guardian','mentor':'Student','student':'Mentor','boss':'Employee','employee':'Boss','employer':'Employee','step-parent':'Stepchild','stepparent':'Stepchild','stepchild':'Stepparent','aunt':'Niece/Nephew','uncle':'Niece/Nephew','niece':'Aunt/Uncle','nephew':'Aunt/Uncle'};
+ const inverse={'parent':'Child','child':'Parent','brother':'Sibling','sister':'Sibling','sibling':'Sibling','mother':'Child','father':'Child','son':'Parent','daughter':'Parent','guardian':'Ward','ward':'Guardian','mentor':'Student','student':'Mentor','boss':'Employee','employee':'Boss','employer':'Employee','step-parent':'Stepchild','stepparent':'Stepchild','stepchild':'Stepparent','aunt':'Niece/Nephew','uncle':'Niece/Nephew','niece':'Aunt/Uncle','nephew':'Aunt/Uncle'};
  if(inverse[x])return inverse[x];if(x==='parent/child')return 'Parent/Child';return label;
 }
 function allRelations(p,c){
