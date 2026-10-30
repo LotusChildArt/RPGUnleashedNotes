@@ -163,6 +163,7 @@ $(target).querySelectorAll('[data-thread-delete-reply]').forEach(b=>b.onclick=()
 }
 
 let relationshipEditMode=false;
+const relationTypes=['Spouse','Parent','Guardian','Child','Sibling','Kin','Friend','Rival','Enemy','Acquaintance','Other'];
 function inverseRelationship(label){
  const x=label.trim().toLowerCase();
  const inverse={'parent':'Child','child':'Parent','brother':'Sibling','sister':'Sibling','sibling':'Sibling','mother':'Child','father':'Child','son':'Parent','daughter':'Parent','guardian':'Ward','ward':'Guardian','mentor':'Student','student':'Mentor','boss':'Employee','employee':'Boss','employer':'Employee','step-parent':'Stepchild','stepparent':'Stepchild','stepchild':'Stepparent','aunt':'Niece/Nephew','uncle':'Niece/Nephew','niece':'Aunt/Uncle','nephew':'Aunt/Uncle'};
