@@ -195,6 +195,16 @@ function wireRelationships(p,c){
   const other=c.people.find(x=>x.id===otherId);if(!other)return;
   const parental=/^(parent|mother|father|parent\/child)$/i.test(relation);
   const child=/^(child|son|daughter)$/i.test(relation);
+  if(/^(spouse|husband|wife|partner)$/i.test(relation)){
+   const partner=c.people.find(x=>x.id===otherId);
+   for(const relationItem of allRelations(p,c)){
+    if(!/^(parent|mother|father|parent\/child)$/i.test(relationItem.relation))continue;
+    const childPerson=c.people.find(x=>x.id===relationItem.linked);if(!childPerson||childPerson.id===partner.id||allRelations(partner,c).some(r=>r.linked===childPerson.id))continue;
+    const answer=prompt(p.name+' is '+childPerson.name+"'s parent. What relationship should "+partner.name+' have with '+childPerson.name+'? Enter Parent, Stepparent, Guardian, or leave blank to skip.','');
+    if(answer?.trim()){partner.relationships ||= [];partner.relationships.push({personId:childPerson.id,relation:answer.trim()})}
+   }
+   return;
+  }
   if(!parental&&!child)return;
   const childId=parental?otherId:p.id,parentId=parental?p.id:otherId;
   const spouse=c.people.filter(x=>x.id!==parentId&&allRelations(c.people.find(t=>t.id===parentId),c).some(r=>r.linked===x.id&&/^(spouse|husband|wife|partner)$/i.test(r.relation)));
