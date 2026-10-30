@@ -171,7 +171,7 @@ function allRelations(p,c){
  p.relationships ||= [];
  // Keep existing one-way records usable, and show reciprocal relationships without duplicating stored records.
  const result=[...p.relationships.map(r=>({...r,owner:p.id,linked:r.personId,reverse:false}))];
- c.people.forEach(other=>{if(other.id===p.id)return;const incoming=(other.relationships||[]).find(r=>r.personId===p.id);if(incoming&&!result.some(r=>r.linked===other.id))result.push({personId:other.id,linked:other.id,owner:other.id,relation:inverseRelationship(incoming.relation),reverse:true})});
+ c.people.forEach(other=>{if(other.id===p.id)return;const incoming=(other.relationships||[]).find(r=>r.personId===p.id);if(incoming&&!result.some(r=>r.linked===other.id))result.push({personId:other.id,linked:other.id,owner:other.id,relation:incoming.reverseRelation||inverseRelationship(incoming.relation),reverse:true})});
  return result.filter(r=>c.people.some(x=>x.id===r.linked));
 }
 function relationshipPanel(p,c){
@@ -179,7 +179,7 @@ function relationshipPanel(p,c){
  const choices=c.people.filter(x=>x.id!==p.id&&!entries.some(r=>r.linked===x.id));
  return '<div class="place-hub-section" id="relationshipsSection"><div class="line"><h3>Relationships</h3><button class="small" id="toggleRelationshipEdit">'+(relationshipEditMode?'Done Arranging':'Arrange')+'</button></div>'
  +'<div class="relationship-list" id="relationshipBoard">'+(entries.map(r=>{const other=c.people.find(t=>t.id===r.linked);return '<div class="relationship-row" data-rel-id="'+safe(r.linked)+'">'+(relationshipEditMode?'<span class="relationship-handle" title="Drag to reorder">☰</span>':'')+'<button class="place-hub-link relationship-open" data-related-person="'+safe(other.id)+'"><strong>'+safe(other.name)+'</strong><div class="subtle-info">'+safe(other.role||'Person')+' - '+safe(r.relation||'Related')+'</div></button>'+(relationshipEditMode?'<button class="small" data-edit-relation="'+safe(r.linked)+'">Edit</button><button class="small" data-remove-relation="'+safe(r.linked)+'">Remove</button>':'')+'</div>'}).join('')||'<p class="muted">No relationships added.</p>')+'</div>'
- +'<button id="toggleAddRelationship" class="place-add-toggle">+ Relationship</button><div id="relationshipForm" class="place-form hidden"><div class="field"><label>Person</label><select id="relationshipPerson"><option value="new">+ Create new person</option>'+choices.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join('')+'</select></div><div id="relationshipNewFields"><div class="field"><label>Name</label><input id="relationshipNewName" placeholder="Person name"></div><div class="field"><label>Role (optional)</label><input id="relationshipNewRole" placeholder="Role"></div></div><div class="field"><label>Relationship to '+safe(p.name)+'</label><input id="relationshipLabel" placeholder="Sibling, ally, rival, spouse..."></div><div class="actions"><button class="primary" id="saveRelationship">Add Relationship</button><button id="cancelRelationship">Cancel</button></div></div></div>';
+ +'<button id="toggleAddRelationship" class="place-add-toggle">+ Relationship</button><div id="relationshipForm" class="place-form hidden"><div class="field"><label>Person</label><select id="relationshipPerson"><option value="new">+ Create new person</option>'+choices.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join('')+'</select></div><div id="relationshipNewFields"><div class="field"><label>Name</label><input id="relationshipNewName" placeholder="Person name"></div><div class="field"><label>Role (optional)</label><input id="relationshipNewRole" placeholder="Role"></div></div><div class="field"><label>Who is the added person to '+safe(p.name)+'?</label><select id="relationshipLabel"><option value="Spouse">Spouse</option><option value="Parent">Parent</option><option value="Guardian">Guardian</option><option value="Child">Child</option><option value="Sibling">Sibling</option><option value="Kin">Kin</option><option value="Friend">Friend</option><option value="Rival">Rival</option><option value="Enemy">Enemy</option><option value="Acquaintance">Acquaintance</option><option value="Other">Other (custom)</option></select><input class="hidden" id="relationshipCustom" placeholder="Custom relationship"><input class="hidden" id="relationshipReverse" placeholder="Reverse relationship"></div><div class="actions"><button class="primary" id="saveRelationship">Add Relationship</button><button id="cancelRelationship">Cancel</button></div></div></div>';
 }
 function wireRelationships(p,c){
  const section=$('relationshipsSection'),board=$('relationshipBoard');
@@ -187,13 +187,13 @@ function wireRelationships(p,c){
  const store=(otherId,relation,reverseLabel)=>{
   const other=c.people.find(x=>x.id===otherId);if(!other)return;
   const incoming=(other.relationships||[]).find(r=>r.personId===p.id);
-  if(incoming){incoming.relation=reverseLabel||inverseRelationship(relation)}
-  else{p.relationships ||= [];const own=p.relationships.find(r=>r.personId===otherId);if(own)own.relation=relation;else p.relationships.push({personId:otherId,relation})}
+  if(incoming){incoming.relation=reverseLabel||inverseRelationship(relation);incoming.reverseRelation=relation}
+  else{p.relationships ||= [];const own=p.relationships.find(r=>r.personId===otherId);if(own){own.relation=relation;own.reverseRelation=reverseLabel||inverseRelationship(relation)}else p.relationships.push({personId:otherId,relation,reverseRelation:reverseLabel||inverseRelationship(relation)})}
  };
  const direct=(otherId)=>{const r=allRelations(p,c).find(x=>x.linked===otherId);return r};
  const suggest=(otherId,relation)=>{
   const other=c.people.find(x=>x.id===otherId);if(!other)return;
-  const parental=/^(parent|mother|father|parent\/child)$/i.test(relation);
+  const parental=/^(parent|mother|father)$/i.test(relation);
   const child=/^(child|son|daughter)$/i.test(relation);
   if(/^(spouse|husband|wife|partner)$/i.test(relation)){
    const partner=c.people.find(x=>x.id===otherId);
@@ -201,7 +201,7 @@ function wireRelationships(p,c){
     if(!/^(child|son|daughter|parent\/child)$/i.test(relationItem.relation))continue;
     const childPerson=c.people.find(x=>x.id===relationItem.linked);if(!childPerson||childPerson.id===partner.id||allRelations(partner,c).some(r=>r.linked===childPerson.id))continue;
     const answer=prompt(p.name+' is '+childPerson.name+"'s parent. What relationship should "+partner.name+' have with '+childPerson.name+'? Enter Parent, Stepparent, Guardian, or leave blank to skip.','');
-    if(answer?.trim()){partner.relationships ||= [];partner.relationships.push({personId:childPerson.id,relation:answer.trim()})}
+    if(answer?.trim()){partner.relationships ||= [];partner.relationships.push({personId:childPerson.id,relation:inverseRelationship(answer.trim()),reverseRelation:answer.trim()})}
    }
    return;
   }
@@ -213,32 +213,20 @@ function wireRelationships(p,c){
    const childPerson=c.people.find(x=>x.id===childId);
    const answer=prompt(partner.name+' is linked to '+c.people.find(x=>x.id===parentId).name+' as a spouse/partner. What relationship should '+partner.name+' have with '+childPerson.name+'? Enter Parent, Stepparent, Guardian, or leave blank to skip.','');
    if(!answer?.trim())return;
-   partner.relationships ||= [];partner.relationships.push({personId:childId,relation:answer.trim()});
+   partner.relationships ||= [];partner.relationships.push({personId:childId,relation:inverseRelationship(answer.trim()),reverseRelation:answer.trim()});
   });
  };
  $('toggleAddRelationship').onclick=()=>$('relationshipForm').classList.toggle('hidden');
  $('cancelRelationship').onclick=()=>$('relationshipForm').classList.add('hidden');
- $('relationshipPerson').onchange=()=>$('relationshipNewFields').classList.toggle('hidden',$('relationshipPerson').value!=='new');
+ $('relationshipPerson').onchange=()=>$('relationshipNewFields').classList.toggle('hidden',$('relationshipPerson').value!=='new');$('relationshipLabel').onchange=()=>{const custom=$('relationshipLabel').value==='Other';$('relationshipCustom').classList.toggle('hidden',!custom);$('relationshipReverse').classList.toggle('hidden',!custom)};
  $('saveRelationship').onclick=()=>{
-  let id=$('relationshipPerson').value;const relation=$('relationshipLabel').value.trim();if(!relation)return alert('Enter a relationship.');
+  let id=$('relationshipPerson').value;let relation=$('relationshipLabel').value.trim(),reverse='';if(relation==='Other'){relation=$('relationshipCustom').value.trim();reverse=$('relationshipReverse').value.trim();if(!relation||!reverse)return alert('Enter both custom relationship labels.')}
   if(id==='new'){const name=$('relationshipNewName').value.trim();if(!name)return alert('Enter a name.');id=uid();c.people.push({id,name,role:$('relationshipNewRole').value.trim(),placeId:'',details:'',comments:[]})}
-  if(!allRelations(p,c).some(r=>r.linked===id)){store(id,relation);suggest(id,relation)}refresh();
+  if(!allRelations(p,c).some(r=>r.linked===id)){store(id,relation,reverse);suggest(id,relation)}refresh();
  };
  $('toggleRelationshipEdit').onclick=()=>{relationshipEditMode=!relationshipEditMode;renderPersonDetail()};
  section.querySelectorAll('[data-related-person]').forEach(b=>b.onclick=()=>{if(relationshipEditMode)return;selectedPersonId=b.dataset.relatedPerson;renderPersonDetail()});
- section.querySelectorAll('[data-edit-relation]').forEach(b=>b.onclick=()=>{
-  const id=b.dataset.editRelation,r=direct(id);if(!r)return;
-  const relation=prompt('What is '+c.people.find(x=>x.id===id).name+' to '+p.name+'?',r.relation);if(relation===null||!relation.trim())return;
-  const reverse=prompt('What is '+p.name+' to '+c.people.find(x=>x.id===id).name+'?',inverseRelationship(relation.trim()));if(reverse===null)return;
-  const owner=c.people.find(x=>x.id===r.owner);const record=owner.relationships.find(x=>x.personId===(r.reverse?p.id:id));
-  if(r.reverse){record.relation=reverse.trim()||inverseRelationship(relation.trim());}else record.relation=relation.trim();
-  // Record both directions only when the reverse label differs from its automatic inverse.
-  const counterpart=c.people.find(x=>x.id===id),opposite=counterpart.relationships ||= [];const inverse=(r.reverse?relation.trim():reverse.trim());
-  let rev=opposite.find(x=>x.personId===p.id);
-  if(!r.reverse&&inverse!==inverseRelationship(relation.trim())){if(rev)rev.relation=inverse;else opposite.push({personId:p.id,relation:inverse})}
-  if(r.reverse){p.relationships ||= [];let directRecord=p.relationships.find(x=>x.personId===id);if(directRecord)directRecord.relation=relation.trim();else p.relationships.push({personId:id,relation:relation.trim()})}
-  refresh();
- });
+ section.querySelectorAll('[data-edit-relation]').forEach(b=>b.onclick=()=>{const id=b.dataset.editRelation,r=direct(id),other=c.people.find(x=>x.id===id);if(!r||!other)return;const value=prompt('Who is '+other.name+' to '+p.name+'? (Spouse, Parent, Guardian, Child, Sibling, Kin, Friend, Rival, Enemy, Acquaintance, Other)',r.relation);if(value===null||!value.trim())return;const reverse=prompt('Who is '+p.name+' to '+other.name+'?',inverseRelationship(value.trim()));if(reverse===null||!reverse.trim())return;p.relationships=(p.relationships||[]).filter(x=>x.personId!==id);other.relationships=(other.relationships||[]).filter(x=>x.personId!==p.id);p.relationships.push({personId:id,relation:value.trim(),reverseRelation:reverse.trim()});suggest(id,value.trim());refresh()});
  section.querySelectorAll('[data-remove-relation]').forEach(b=>b.onclick=()=>{if(!confirm('Remove this relationship from both people?'))return;const id=b.dataset.removeRelation;p.relationships=(p.relationships||[]).filter(r=>r.personId!==id);const other=c.people.find(x=>x.id===id);other.relationships=(other.relationships||[]).filter(r=>r.personId!==p.id);refresh()});
  if(!relationshipEditMode)return;
  const persistOrder=()=>{const ids=[...board.querySelectorAll('[data-rel-id]')].map(el=>el.dataset.relId);p.relationshipOrder=ids;save()};
