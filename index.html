@@ -227,6 +227,27 @@ function wireRelationships(p,c){
    const shared=parents(x.id).find(id=>parents(y.id).includes(id));
    if(shared)await offer(x.id,y.id,'Sibling',x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Are they siblings?','sibling');
   }
+  // Two adults identified as parents of the same child may have a relationship.
+  for(const child of people){
+   const ids=[...new Set(parents(child.id))];
+   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+    const a=person(ids[i]),b=person(ids[j]);
+    if(a&&b)await offer(a.id,b.id,'Spouse',a.name+' and '+b.name+' are both listed as parents of '+child.name+'. Are they spouses?','coparent');
+   }
+  }
+  // Explicit siblings may share parents, even if their parent links aren't filled in yet.
+  for(const child of people)for(const sibling of links(child.id).filter(r=>/^(sibling|brother|sister)$/i.test(r.relation))){
+   for(const parentId of parents(child.id)){
+    const parent=person(parentId),other=person(sibling.linked);if(!parent||!other)continue;
+    await offer(other.id,parent.id,'Parent',child.name+' and '+other.name+' are siblings, and '+parent.name+' is '+child.name+"'s parent. Is "+parent.name+' also '+other.name+"'s parent?",'siblingparent');
+   }
+  }
+  // A newly accepted parent can reveal other sibling links.
+  for(let i=0;i<people.length;i++)for(let j=i+1;j<people.length;j++){
+   const x=people[i],y=people[j];if(links(x.id).some(r=>r.linked===y.id))continue;
+   const shared=parents(x.id).find(id=>parents(y.id).includes(id));
+   if(shared)await offer(x.id,y.id,'Sibling',x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Are they siblings?','sibling');
+  }
   return {offered,linked};
  };
  $('reviewRelationships').onclick=async()=>{const result=await suggest();refresh();if(!result.offered)alert('No new family connections found. Connections checks parent/spouse and shared-parent sibling links.');};
