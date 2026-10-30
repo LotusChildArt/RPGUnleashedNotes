@@ -194,11 +194,11 @@ function wireRelationships(p,c){
  const suggest=(otherId,relation)=>{
   const people=c.people,person=id=>people.find(x=>x.id===id),links=id=>allRelations(person(id),c);
   const parents=id=>links(id).filter(r=>/^(parent|mother|father)$/i.test(r.relation)).map(r=>r.linked);
-  const proposed=new Set();
+  const proposed=new Set();c.dismissedRelationshipSuggestions ||= [];const dismissed=new Set(c.dismissedRelationshipSuggestions);
   const add=(childId,parentId,description)=>{
    if(childId===parentId||links(childId).some(r=>r.linked===parentId))return;
-   const key=[childId,parentId].sort().join(':');if(proposed.has(key))return;proposed.add(key);
-   if(confirm(description+' Is '+person(parentId).name+' also a parent of '+person(childId).name+'?')){(person(childId).relationships ||= []).push({personId:parentId,relation:'Parent',reverseRelation:'Child'})}
+   const key=[childId,parentId].sort().join(':');if(proposed.has(key)||dismissed.has('parent:'+key))return;proposed.add(key);
+   if(confirm(description+' Is '+person(parentId).name+' also a parent of '+person(childId).name+'?')){(person(childId).relationships ||= []).push({personId:parentId,relation:'Parent',reverseRelation:'Child'})}else{c.dismissedRelationshipSuggestions.push('parent:'+key)}
   };
   for(const child of people)for(const parentId of parents(child.id))for(const spouse of links(parentId).filter(r=>/^(spouse|husband|wife|partner)$/i.test(r.relation))){
    add(child.id,spouse.linked,person(parentId).name+' is '+child.name+"'s parent and "+person(spouse.linked).name+' is their spouse.');
@@ -207,8 +207,9 @@ function wireRelationships(p,c){
    const x=people[i],y=people[j];
    if(links(x.id).some(r=>r.linked===y.id))continue;
    const shared=parents(x.id).find(id=>parents(y.id).includes(id));
-   if(shared&&confirm(x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Should they be linked as siblings?')){
-    (x.relationships ||= []).push({personId:y.id,relation:'Sibling',reverseRelation:'Sibling'});
+   if(shared&&!dismissed.has('sibling:'+([x.id,y.id].sort().join(':')))){
+    if(confirm(x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Should they be linked as siblings?'))(x.relationships ||= []).push({personId:y.id,relation:'Sibling',reverseRelation:'Sibling'});
+    else c.dismissedRelationshipSuggestions.push('sibling:'+([x.id,y.id].sort().join(':')));
    }
   }
  };
