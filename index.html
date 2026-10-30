@@ -178,9 +178,9 @@ function allRelations(p,c){
 function relationshipPanel(p,c){
  const entries=allRelations(p,c);if(p.relationshipOrder?.length){const order=new Map(p.relationshipOrder.map((id,i)=>[id,i]));entries.sort((a,b)=>(order.get(a.linked)??99999)-(order.get(b.linked)??99999))}
  const choices=c.people.filter(x=>x.id!==p.id&&!entries.some(r=>r.linked===x.id));
- return '<div class="place-hub-section" id="relationshipsSection"><div class="line"><h3>Relationships</h3><button class="small" id="toggleRelationshipEdit">'+(relationshipEditMode?'Done Arranging':'Arrange')+'</button></div>'
+ return '<div class="place-hub-section" id="relationshipsSection"><div class="line"><h3>Relationships</h3><button class="small" id="reviewRelationships">Connections</button><button class="small" id="toggleRelationshipEdit">'+(relationshipEditMode?'Done Arranging':'Arrange')+'</button></div>'
  +'<div class="relationship-list" id="relationshipBoard">'+(entries.map(r=>{const other=c.people.find(t=>t.id===r.linked);return '<div class="relationship-row" data-rel-id="'+safe(r.linked)+'">'+(relationshipEditMode?'<span class="relationship-handle" title="Drag to reorder">☰</span>':'')+'<button class="place-hub-link relationship-open" data-related-person="'+safe(other.id)+'"><strong>'+safe(other.name)+'</strong><div class="subtle-info">'+safe(other.role||'Person')+' - '+safe(r.relation||'Related')+'</div></button>'+(relationshipEditMode?'<button class="small" data-edit-relation="'+safe(r.linked)+'">Edit</button><button class="small" data-remove-relation="'+safe(r.linked)+'">Remove</button>':'')+'</div>'}).join('')||'<p class="muted">No relationships added.</p>')+'</div>'
- +'<button id="reviewRelationships" class="small">Review possible family connections</button>'
+
  +'<button id="toggleAddRelationship" class="place-add-toggle">+ Relationship</button><div id="relationshipForm" class="place-form hidden"><div class="field"><label>Person</label><select id="relationshipPerson"><option value="new">+ Create new person</option>'+choices.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join('')+'</select></div><div id="relationshipNewFields"><div class="field"><label>Name</label><input id="relationshipNewName" placeholder="Person name"></div><div class="field"><label>Role (optional)</label><input id="relationshipNewRole" placeholder="Role"></div></div><div class="field"><label>Who is the added person to '+safe(p.name)+'?</label><select id="relationshipLabel"><option value="Spouse">Spouse</option><option value="Parent">Parent</option><option value="Guardian">Guardian</option><option value="Child">Child</option><option value="Sibling">Sibling</option><option value="Kin">Kin</option><option value="Friend">Friend</option><option value="Rival">Rival</option><option value="Enemy">Enemy</option><option value="Acquaintance">Acquaintance</option><option value="Other">Other (custom)</option></select><input class="hidden" id="relationshipCustom" placeholder="Custom relationship"><input class="hidden" id="relationshipReverse" placeholder="Reverse relationship"></div><div class="actions"><button class="primary" id="saveRelationship">Add Relationship</button><button id="cancelRelationship">Cancel</button></div></div></div>';
 }
 function wireRelationships(p,c){
@@ -210,14 +210,14 @@ function wireRelationships(p,c){
  const suggest=async()=>{
   const people=c.people,person=id=>people.find(x=>x.id===id),links=id=>allRelations(person(id),c);
   const parents=id=>links(id).filter(r=>/^(parent|mother|father)$/i.test(r.relation)).map(r=>r.linked);
-  const proposed=new Set();c.dismissedRelationshipSuggestions ||= [];const dismissed=new Set(); // Recheck suggestions on each new relationship; earlier declines must not suppress future prompts.
+  const proposed=new Set();const dismissed=new Set();let offered=0,linked=0;
   const storeFamilyRelation=(primaryId,addedId,label,reverseLabel)=>{const primary=person(primaryId),added=person(addedId);primary.relationships ||= [];added.relationships ||= [];primary.relationships=primary.relationships.filter(r=>r.personId!==addedId);added.relationships=added.relationships.filter(r=>r.personId!==primaryId);primary.relationships.push({personId:addedId,relation:label,reverseRelation:reverseLabel||inverseRelationship(label)})};
  const offer=async(primaryId,addedId,defaultLabel,question,prefix)=>{
    if(primaryId===addedId||links(primaryId).some(r=>r.linked===addedId))return;
    const key=prefix+':'+[primaryId,addedId].sort().join(':');if(proposed.has(key)||dismissed.has(key))return;proposed.add(key);
-   const choice=await askSuggestion(question,defaultLabel);
-   if(choice){storeFamilyRelation(primaryId,addedId,choice.label,choice.reverseLabel)}
-   else{c.dismissedRelationshipSuggestions.push(key);dismissed.add(key)}
+   offered++;const choice=await askSuggestion(question,defaultLabel);
+   if(choice){storeFamilyRelation(primaryId,addedId,choice.label,choice.reverseLabel);linked++}
+   else{dismissed.add(key)}
   };
   for(const child of people)for(const parentId of parents(child.id))for(const spouse of links(parentId).filter(r=>/^(spouse|husband|wife|partner)$/i.test(r.relation))){
    await offer(child.id,spouse.linked,'Parent',person(parentId).name+' is '+child.name+"'s parent and "+person(spouse.linked).name+' is their spouse. Is '+person(spouse.linked).name+' also '+child.name+"'s parent?",'parent');
@@ -227,8 +227,9 @@ function wireRelationships(p,c){
    const shared=parents(x.id).find(id=>parents(y.id).includes(id));
    if(shared)await offer(x.id,y.id,'Sibling',x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Are they siblings?','sibling');
   }
+  return {offered,linked};
  };
- $('reviewRelationships').onclick=async()=>{await suggest();refresh()};
+ $('reviewRelationships').onclick=async()=>{const result=await suggest();refresh();if(!result.offered)alert('No new family connections found. Connections checks parent/spouse and shared-parent sibling links.');};
  $('toggleAddRelationship').onclick=()=>$('relationshipForm').classList.toggle('hidden');
  $('cancelRelationship').onclick=()=>$('relationshipForm').classList.add('hidden');
  $('relationshipPerson').onchange=()=>$('relationshipNewFields').classList.toggle('hidden',$('relationshipPerson').value!=='new');$('relationshipLabel').onchange=()=>{const custom=$('relationshipLabel').value==='Other';$('relationshipCustom').classList.toggle('hidden',!custom);$('relationshipReverse').classList.toggle('hidden',!custom)};
