@@ -39,6 +39,7 @@ body.player-view #relationshipsSection #toggleAddRelationship,body.player-view #
 @media(max-width:450px){.mode-switch{width:100%;justify-content:flex-end}}
 .mention-link{border:0;background:transparent;color:#2469bf;text-decoration:underline;padding:0 2px;border-radius:0;font:inherit;display:inline;cursor:pointer}body.dark .mention-link{color:#9ccaff}.mention-suggestions{position:relative;z-index:30;max-height:220px;overflow-y:auto;border:2px solid var(--edge);border-radius:12px;background:var(--surface);margin:3px 0 9px}.mention-suggestions.hidden{display:none!important}.mention-suggestion{display:block;width:100%;border:0;border-radius:0;text-align:left;padding:9px 12px;font-weight:normal}.mention-suggestion:hover{background:var(--raised)}
 .relationship-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}.relationship-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0}.relationship-row .relationship-open{flex:1;min-width:0;margin:0}.relationship-handle{touch-action:none;cursor:grab;user-select:none;padding:12px 7px;font-size:20px}.relationship-moving{opacity:.75}.relationship-moving .relationship-handle{cursor:grabbing}.relationship-row .small{flex-shrink:0}
+.relationship-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px}.relationship-modal{background:var(--surface);color:var(--text);border:1px solid var(--edge);border-radius:14px;padding:22px;width:min(440px,100%);max-height:90vh;overflow:auto;box-shadow:0 8px 35px #0005}.relationship-modal .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.relationship-modal select,.relationship-modal input{width:100%;margin-top:8px}
 </style></head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
@@ -191,39 +192,51 @@ function wireRelationships(p,c){
   else{p.relationships ||= [];const own=p.relationships.find(r=>r.personId===otherId);if(own){own.relation=relation;own.reverseRelation=reverseLabel||inverseRelationship(relation)}else p.relationships.push({personId:otherId,relation,reverseRelation:reverseLabel||inverseRelationship(relation)})}
  };
  const direct=(otherId)=>{const r=allRelations(p,c).find(x=>x.linked===otherId);return r};
- const suggest=(otherId,relation)=>{
+ const askSuggestion=(question,defaultLabel)=>new Promise(resolve=>{
+  const overlay=document.createElement('div');overlay.className='relationship-modal-backdrop';
+  const options=relationTypes.map(x=>'<option value="'+safe(x)+'">'+safe(x==='Other'?'Other (custom)':x)+'</option>').join('');
+  overlay.innerHTML='<div class="relationship-modal" role="dialog" aria-modal="true" aria-label="Relationship suggestion"><h3>Suggested relationship</h3><p>'+safe(question)+'</p><div class="actions" id="relationshipDecision"><button class="primary" data-decision="yes">Yes</button><button data-decision="no">No</button><button data-decision="other">Other</button></div><div id="relationshipAlternate" class="hidden"><label>Choose relationship instead</label><select id="relationshipAlternateType">'+options+'</select><input id="relationshipAlternateCustom" class="hidden" placeholder="Custom relationship"><input id="relationshipAlternateReverse" class="hidden" placeholder="Reverse relationship"><div class="actions"><button class="primary" id="relationshipAlternateSave">Save relationship</button><button id="relationshipAlternateBack">Back</button></div></div></div>';
+  document.body.append(overlay);
+  const close=value=>{overlay.remove();resolve(value)};
+  overlay.querySelector('[data-decision="yes"]').onclick=()=>close({label:defaultLabel});
+  overlay.querySelector('[data-decision="no"]').onclick=()=>close(null);
+  overlay.querySelector('[data-decision="other"]').onclick=()=>{overlay.querySelector('#relationshipDecision').classList.add('hidden');overlay.querySelector('#relationshipAlternate').classList.remove('hidden');overlay.querySelector('#relationshipAlternateType').focus()};
+  overlay.querySelector('#relationshipAlternateBack').onclick=()=>{overlay.querySelector('#relationshipAlternate').classList.add('hidden');overlay.querySelector('#relationshipDecision').classList.remove('hidden')};
+  const choice=overlay.querySelector('#relationshipAlternateType'),custom=overlay.querySelector('#relationshipAlternateCustom'),reverse=overlay.querySelector('#relationshipAlternateReverse');
+  choice.onchange=()=>{const show=choice.value==='Other';custom.classList.toggle('hidden',!show);reverse.classList.toggle('hidden',!show)};
+  overlay.querySelector('#relationshipAlternateSave').onclick=()=>{let label=choice.value,reverseLabel;if(label==='Other'){label=custom.value.trim();reverseLabel=reverse.value.trim();if(!label||!reverseLabel)return alert('Enter both custom relationship labels.')}close({label,reverseLabel})};
+ });
+ const suggest=async()=>{
   const people=c.people,person=id=>people.find(x=>x.id===id),links=id=>allRelations(person(id),c);
   const parents=id=>links(id).filter(r=>/^(parent|mother|father)$/i.test(r.relation)).map(r=>r.linked);
   const proposed=new Set();c.dismissedRelationshipSuggestions ||= [];const dismissed=new Set(c.dismissedRelationshipSuggestions);
-  const add=(childId,parentId,description)=>{
-   if(childId===parentId||links(childId).some(r=>r.linked===parentId))return;
-   const key=[childId,parentId].sort().join(':');if(proposed.has(key)||dismissed.has('parent:'+key))return;proposed.add(key);
-   if(confirm(description+' Is '+person(parentId).name+' also a parent of '+person(childId).name+'?')){(person(childId).relationships ||= []).push({personId:parentId,relation:'Parent',reverseRelation:'Child'})}else{c.dismissedRelationshipSuggestions.push('parent:'+key)}
+  const offer=async(primaryId,addedId,defaultLabel,question,prefix)=>{
+   if(primaryId===addedId||links(primaryId).some(r=>r.linked===addedId))return;
+   const key=prefix+':'+[primaryId,addedId].sort().join(':');if(proposed.has(key)||dismissed.has(key))return;proposed.add(key);
+   const choice=await askSuggestion(question,defaultLabel);
+   if(choice){(person(primaryId).relationships ||= []).push({personId:addedId,relation:choice.label,reverseRelation:choice.reverseLabel||inverseRelationship(choice.label)})}
+   else{c.dismissedRelationshipSuggestions.push(key);dismissed.add(key)}
   };
   for(const child of people)for(const parentId of parents(child.id))for(const spouse of links(parentId).filter(r=>/^(spouse|husband|wife|partner)$/i.test(r.relation))){
-   add(child.id,spouse.linked,person(parentId).name+' is '+child.name+"'s parent and "+person(spouse.linked).name+' is their spouse.');
+   await offer(child.id,spouse.linked,'Parent',person(parentId).name+' is '+child.name+"'s parent and "+person(spouse.linked).name+' is their spouse. Is '+person(spouse.linked).name+' also '+child.name+"'s parent?",'parent');
   }
   for(let i=0;i<people.length;i++)for(let j=i+1;j<people.length;j++){
-   const x=people[i],y=people[j];
-   if(links(x.id).some(r=>r.linked===y.id))continue;
+   const x=people[i],y=people[j];if(links(x.id).some(r=>r.linked===y.id))continue;
    const shared=parents(x.id).find(id=>parents(y.id).includes(id));
-   if(shared&&!dismissed.has('sibling:'+([x.id,y.id].sort().join(':')))){
-    if(confirm(x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Should they be linked as siblings?'))(x.relationships ||= []).push({personId:y.id,relation:'Sibling',reverseRelation:'Sibling'});
-    else c.dismissedRelationshipSuggestions.push('sibling:'+([x.id,y.id].sort().join(':')));
-   }
+   if(shared)await offer(x.id,y.id,'Sibling',x.name+' and '+y.name+' share '+person(shared).name+' as a parent. Are they siblings?','sibling');
   }
  };
  $('toggleAddRelationship').onclick=()=>$('relationshipForm').classList.toggle('hidden');
  $('cancelRelationship').onclick=()=>$('relationshipForm').classList.add('hidden');
  $('relationshipPerson').onchange=()=>$('relationshipNewFields').classList.toggle('hidden',$('relationshipPerson').value!=='new');$('relationshipLabel').onchange=()=>{const custom=$('relationshipLabel').value==='Other';$('relationshipCustom').classList.toggle('hidden',!custom);$('relationshipReverse').classList.toggle('hidden',!custom)};
- $('saveRelationship').onclick=()=>{
+ $('saveRelationship').onclick=async()=>{
   let id=$('relationshipPerson').value;let relation=$('relationshipLabel').value.trim(),reverse='';if(relation==='Other'){relation=$('relationshipCustom').value.trim();reverse=$('relationshipReverse').value.trim();if(!relation||!reverse)return alert('Enter both custom relationship labels.')}
   if(id==='new'){const name=$('relationshipNewName').value.trim();if(!name)return alert('Enter a name.');id=uid();c.people.push({id,name,role:$('relationshipNewRole').value.trim(),placeId:'',details:'',comments:[]})}
-  if(!allRelations(p,c).some(r=>r.linked===id)){store(id,relation,reverse);suggest(id,relation)}refresh();
+  if(!allRelations(p,c).some(r=>r.linked===id)){store(id,relation,reverse);await suggest()}refresh();
  };
  $('toggleRelationshipEdit').onclick=()=>{relationshipEditMode=!relationshipEditMode;renderPersonDetail()};
  section.querySelectorAll('[data-related-person]').forEach(b=>b.onclick=()=>{if(relationshipEditMode)return;selectedPersonId=b.dataset.relatedPerson;renderPersonDetail()});
- section.querySelectorAll('[data-edit-relation]').forEach(b=>b.onclick=()=>{const id=b.dataset.editRelation,r=direct(id),other=c.people.find(x=>x.id===id);if(!r||!other)return;const value=prompt('Who is '+other.name+' to '+p.name+'? (Spouse, Parent, Guardian, Child, Sibling, Kin, Friend, Rival, Enemy, Acquaintance, Other)',r.relation);if(value===null||!value.trim())return;const reverse=prompt('Who is '+p.name+' to '+other.name+'?',inverseRelationship(value.trim()));if(reverse===null||!reverse.trim())return;p.relationships=(p.relationships||[]).filter(x=>x.personId!==id);other.relationships=(other.relationships||[]).filter(x=>x.personId!==p.id);p.relationships.push({personId:id,relation:value.trim(),reverseRelation:reverse.trim()});suggest(id,value.trim());refresh()});
+ section.querySelectorAll('[data-edit-relation]').forEach(b=>b.onclick=async()=>{const id=b.dataset.editRelation,r=direct(id),other=c.people.find(x=>x.id===id);if(!r||!other)return;const value=prompt('Who is '+other.name+' to '+p.name+'? (Spouse, Parent, Guardian, Child, Sibling, Kin, Friend, Rival, Enemy, Acquaintance, Other)',r.relation);if(value===null||!value.trim())return;const reverse=prompt('Who is '+p.name+' to '+other.name+'?',inverseRelationship(value.trim()));if(reverse===null||!reverse.trim())return;p.relationships=(p.relationships||[]).filter(x=>x.personId!==id);other.relationships=(other.relationships||[]).filter(x=>x.personId!==p.id);p.relationships.push({personId:id,relation:value.trim(),reverseRelation:reverse.trim()});await suggest();refresh()});
  section.querySelectorAll('[data-remove-relation]').forEach(b=>b.onclick=()=>{if(!confirm('Remove this relationship from both people?'))return;const id=b.dataset.removeRelation;p.relationships=(p.relationships||[]).filter(r=>r.personId!==id);const other=c.people.find(x=>x.id===id);other.relationships=(other.relationships||[]).filter(r=>r.personId!==p.id);refresh()});
  if(!relationshipEditMode)return;
  const persistOrder=()=>{const ids=[...board.querySelectorAll('[data-rel-id]')].map(el=>el.dataset.relId);p.relationshipOrder=ids;save()};
