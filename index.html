@@ -162,32 +162,77 @@ $(target).querySelectorAll('[data-thread-delete-reply]').forEach(b=>b.onclick=()
 }
 
 let relationshipEditMode=false;
-function relationshipPanel(p,c){
+function inverseRelationship(label){
+ const x=label.trim().toLowerCase();
+ const inverse={'parent':'Child','child':'Parent','mother':'Child','father':'Child','son':'Parent','daughter':'Parent','guardian':'Ward','ward':'Guardian','mentor':'Student','student':'Mentor','boss':'Employee','employee':'Boss','employer':'Employee','step-parent':'Stepchild','stepparent':'Stepchild','stepchild':'Stepparent','aunt':'Niece/Nephew','uncle':'Niece/Nephew','niece':'Aunt/Uncle','nephew':'Aunt/Uncle'};
+ if(inverse[x])return inverse[x];if(x==='parent/child')return 'Parent/Child';return label;
+}
+function allRelations(p,c){
  p.relationships ||= [];
- const entries=p.relationships.filter(r=>c.people.some(x=>x.id===r.personId));
- const choices=c.people.filter(x=>x.id!==p.id&&!entries.some(r=>r.personId===x.id));
+ // Keep existing one-way records usable, and show reciprocal relationships without duplicating stored records.
+ const result=[...p.relationships.map(r=>({...r,owner:p.id,linked:r.personId,reverse:false}))];
+ c.people.forEach(other=>{if(other.id===p.id)return;const incoming=(other.relationships||[]).find(r=>r.personId===p.id);if(incoming&&!result.some(r=>r.linked===other.id))result.push({personId:other.id,linked:other.id,owner:other.id,relation:inverseRelationship(incoming.relation),reverse:true})});
+ return result.filter(r=>c.people.some(x=>x.id===r.linked));
+}
+function relationshipPanel(p,c){
+ const entries=allRelations(p,c);if(p.relationshipOrder?.length){const order=new Map(p.relationshipOrder.map((id,i)=>[id,i]));entries.sort((a,b)=>(order.get(a.linked)??99999)-(order.get(b.linked)??99999))}
+ const choices=c.people.filter(x=>x.id!==p.id&&!entries.some(r=>r.linked===x.id));
  return '<div class="place-hub-section" id="relationshipsSection"><div class="line"><h3>Relationships</h3><button class="small" id="toggleRelationshipEdit">'+(relationshipEditMode?'Done Arranging':'Arrange')+'</button></div>'
- +'<div class="relationship-list" id="relationshipBoard">'+(entries.map(r=>{const other=c.people.find(t=>t.id===r.personId);return '<div class="relationship-row" data-rel-id="'+safe(r.personId)+'">'+(relationshipEditMode?'<span class="relationship-handle" title="Drag to reorder" aria-label="Drag to reorder">☰</span>':'')+'<button class="place-hub-link relationship-open" data-related-person="'+safe(other.id)+'"><strong>'+safe(other.name)+'</strong><div class="subtle-info">'+safe(other.role||'Person')+' - '+safe(r.relation||'Related')+'</div></button>'+(relationshipEditMode?'<button class="small" data-remove-relation="'+safe(r.personId)+'">Remove</button>':'')+'</div>'}).join('')||'<p class="muted">No relationships added.</p>')+'</div>'
+ +'<div class="relationship-list" id="relationshipBoard">'+(entries.map(r=>{const other=c.people.find(t=>t.id===r.linked);return '<div class="relationship-row" data-rel-id="'+safe(r.linked)+'">'+(relationshipEditMode?'<span class="relationship-handle" title="Drag to reorder">☰</span>':'')+'<button class="place-hub-link relationship-open" data-related-person="'+safe(other.id)+'"><strong>'+safe(other.name)+'</strong><div class="subtle-info">'+safe(other.role||'Person')+' - '+safe(r.relation||'Related')+'</div></button>'+(relationshipEditMode?'<button class="small" data-edit-relation="'+safe(r.linked)+'">Edit</button><button class="small" data-remove-relation="'+safe(r.linked)+'">Remove</button>':'')+'</div>'}).join('')||'<p class="muted">No relationships added.</p>')+'</div>'
  +'<button id="toggleAddRelationship" class="place-add-toggle">+ Relationship</button><div id="relationshipForm" class="place-form hidden"><div class="field"><label>Person</label><select id="relationshipPerson"><option value="new">+ Create new person</option>'+choices.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join('')+'</select></div><div id="relationshipNewFields"><div class="field"><label>Name</label><input id="relationshipNewName" placeholder="Person name"></div><div class="field"><label>Role (optional)</label><input id="relationshipNewRole" placeholder="Role"></div></div><div class="field"><label>Relationship to '+safe(p.name)+'</label><input id="relationshipLabel" placeholder="Sibling, ally, rival, spouse..."></div><div class="actions"><button class="primary" id="saveRelationship">Add Relationship</button><button id="cancelRelationship">Cancel</button></div></div></div>';
 }
 function wireRelationships(p,c){
  const section=$('relationshipsSection'),board=$('relationshipBoard');
+ const refresh=()=>{save();renderPlacesPeople();renderPersonDetail()};
+ const store=(otherId,relation,reverseLabel)=>{
+  const other=c.people.find(x=>x.id===otherId);if(!other)return;
+  const incoming=(other.relationships||[]).find(r=>r.personId===p.id);
+  if(incoming){incoming.relation=reverseLabel||inverseRelationship(relation)}
+  else{p.relationships ||= [];const own=p.relationships.find(r=>r.personId===otherId);if(own)own.relation=relation;else p.relationships.push({personId:otherId,relation})}
+ };
+ const direct=(otherId)=>{const r=allRelations(p,c).find(x=>x.linked===otherId);return r};
+ const suggest=(otherId,relation)=>{
+  const other=c.people.find(x=>x.id===otherId);if(!other)return;
+  const parental=/^(parent|mother|father|parent\/child)$/i.test(relation);
+  const child=/^(child|son|daughter)$/i.test(relation);
+  if(!parental&&!child)return;
+  const childId=parental?otherId:p.id,parentId=parental?p.id:otherId;
+  const spouse=c.people.filter(x=>x.id!==parentId&&allRelations(c.people.find(t=>t.id===parentId),c).some(r=>r.linked===x.id&&/^(spouse|husband|wife|partner)$/i.test(r.relation)));
+  spouse.forEach(partner=>{
+   if(partner.id===childId||allRelations(partner,c).some(r=>r.linked===childId))return;
+   const childPerson=c.people.find(x=>x.id===childId);
+   const answer=prompt(partner.name+' is linked to '+c.people.find(x=>x.id===parentId).name+' as a spouse/partner. What relationship should '+partner.name+' have with '+childPerson.name+'? Enter Parent, Stepparent, Guardian, or leave blank to skip.','');
+   if(!answer?.trim())return;
+   partner.relationships ||= [];partner.relationships.push({personId:childId,relation:answer.trim()});
+  });
+ };
  $('toggleAddRelationship').onclick=()=>$('relationshipForm').classList.toggle('hidden');
  $('cancelRelationship').onclick=()=>$('relationshipForm').classList.add('hidden');
  $('relationshipPerson').onchange=()=>$('relationshipNewFields').classList.toggle('hidden',$('relationshipPerson').value!=='new');
- $('saveRelationship').onclick=()=>{let id=$('relationshipPerson').value;const relation=$('relationshipLabel').value.trim();if(!relation)return alert('Enter a relationship.');if(id==='new'){const name=$('relationshipNewName').value.trim();if(!name)return alert('Enter a name.');id=uid();c.people.push({id,name,role:$('relationshipNewRole').value.trim(),placeId:'',details:'',comments:[]})}if(!p.relationships.some(r=>r.personId===id))p.relationships.push({personId:id,relation});save();renderPlacesPeople();renderPersonDetail()};
+ $('saveRelationship').onclick=()=>{
+  let id=$('relationshipPerson').value;const relation=$('relationshipLabel').value.trim();if(!relation)return alert('Enter a relationship.');
+  if(id==='new'){const name=$('relationshipNewName').value.trim();if(!name)return alert('Enter a name.');id=uid();c.people.push({id,name,role:$('relationshipNewRole').value.trim(),placeId:'',details:'',comments:[]})}
+  if(!allRelations(p,c).some(r=>r.linked===id)){store(id,relation);suggest(id,relation)}refresh();
+ };
  $('toggleRelationshipEdit').onclick=()=>{relationshipEditMode=!relationshipEditMode;renderPersonDetail()};
  section.querySelectorAll('[data-related-person]').forEach(b=>b.onclick=()=>{if(relationshipEditMode)return;selectedPersonId=b.dataset.relatedPerson;renderPersonDetail()});
- section.querySelectorAll('[data-remove-relation]').forEach(b=>b.onclick=()=>{if(!confirm('Remove this relationship?'))return;p.relationships=p.relationships.filter(r=>r.personId!==b.dataset.removeRelation);save();renderPersonDetail()});
- if(!relationshipEditMode)return;
- const persistOrder=()=>{const ids=[...board.querySelectorAll('[data-rel-id]')].map(el=>el.dataset.relId);const order=new Map(ids.map((id,i)=>[id,i]));p.relationships.sort((a,b)=>(order.get(a.personId)??Infinity)-(order.get(b.personId)??Infinity));save()};
- section.querySelectorAll('.relationship-row').forEach(row=>{
-  const handle=row.querySelector('.relationship-handle');let startY=null,pointer=null,moved=false;
-  handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();pointer=e.pointerId;startY=e.clientY;moved=false;handle.setPointerCapture(pointer);row.classList.add('relationship-moving')});
-  handle.addEventListener('pointermove',e=>{if(pointer!==e.pointerId||startY===null)return;if(Math.abs(e.clientY-startY)>5)moved=true;if(!moved)return;const rows=[...board.querySelectorAll('.relationship-row')].filter(x=>x!==row);const after=rows.find(x=>e.clientY<x.getBoundingClientRect().top+x.getBoundingClientRect().height/2);board.insertBefore(row,after||null)});
-  const finish=e=>{if(pointer!==e.pointerId)return;row.classList.remove('relationship-moving');pointer=null;startY=null;if(moved)persistOrder()};
-  handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
+ section.querySelectorAll('[data-edit-relation]').forEach(b=>b.onclick=()=>{
+  const id=b.dataset.editRelation,r=direct(id);if(!r)return;
+  const relation=prompt('Relationship from '+p.name+' to '+c.people.find(x=>x.id===id).name,r.relation);if(relation===null||!relation.trim())return;
+  const reverse=prompt('Relationship from '+c.people.find(x=>x.id===id).name+' to '+p.name,inverseRelationship(relation.trim()));if(reverse===null)return;
+  const owner=c.people.find(x=>x.id===r.owner);const record=owner.relationships.find(x=>x.personId===(r.reverse?p.id:id));
+  if(r.reverse){record.relation=reverse.trim()||inverseRelationship(relation.trim());}else record.relation=relation.trim();
+  // Record both directions only when the reverse label differs from its automatic inverse.
+  const counterpart=c.people.find(x=>x.id===id),opposite=counterpart.relationships ||= [];const inverse=(r.reverse?relation.trim():reverse.trim());
+  let rev=opposite.find(x=>x.personId===p.id);
+  if(!r.reverse&&inverse!==inverseRelationship(relation.trim())){if(rev)rev.relation=inverse;else opposite.push({personId:p.id,relation:inverse})}
+  if(r.reverse){p.relationships ||= [];let directRecord=p.relationships.find(x=>x.personId===id);if(directRecord)directRecord.relation=relation.trim();else p.relationships.push({personId:id,relation:relation.trim()})}
+  refresh();
  });
+ section.querySelectorAll('[data-remove-relation]').forEach(b=>b.onclick=()=>{if(!confirm('Remove this relationship from both people?'))return;const id=b.dataset.removeRelation;p.relationships=(p.relationships||[]).filter(r=>r.personId!==id);const other=c.people.find(x=>x.id===id);other.relationships=(other.relationships||[]).filter(r=>r.personId!==p.id);refresh()});
+ if(!relationshipEditMode)return;
+ const persistOrder=()=>{const ids=[...board.querySelectorAll('[data-rel-id]')].map(el=>el.dataset.relId);p.relationshipOrder=ids;save()};
+ section.querySelectorAll('.relationship-row').forEach(row=>{const handle=row.querySelector('.relationship-handle');let startY=null,pointer=null,moved=false;handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();pointer=e.pointerId;startY=e.clientY;handle.setPointerCapture(pointer);row.classList.add('relationship-moving')});handle.addEventListener('pointermove',e=>{if(pointer!==e.pointerId||startY===null)return;if(Math.abs(e.clientY-startY)>5)moved=true;if(!moved)return;const rows=[...board.querySelectorAll('.relationship-row')].filter(x=>x!==row),after=rows.find(x=>e.clientY<x.getBoundingClientRect().top+x.getBoundingClientRect().height/2);board.insertBefore(row,after||null)});const finish=e=>{if(pointer!==e.pointerId)return;row.classList.remove('relationship-moving');pointer=null;startY=null;if(moved)persistOrder()};handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish)});
 }
 function renderPersonDetail(){const c=current(),p=c?.people.find(x=>x.id===selectedPersonId);if(!p){$('personDetail').classList.add('hidden');$('peopleMainPanel').classList.remove('hidden');$('personCreatePanel').classList.remove('hidden');$('peopleList').classList.remove('hidden');return}p.comments ||= [];$('peopleMainPanel').classList.add('hidden');$('personCreatePanel').classList.add('hidden');$('peopleList').classList.add('hidden');$('personDetail').classList.remove('hidden');const location=c.places.find(x=>x.id===p.placeId);$('personDetail').innerHTML='<div class="place-hub-heading"><h2>'+safe(p.name)+'</h2><span class="hub-spacer"></span><button class="small" id="closePerson">← People</button><button class="small" id="editPersonDetails">Edit</button></div><p><strong>Role:</strong> '+safe(p.role||'Unspecified')+'</p><p><strong>Location:</strong> '+(location?'<button class="place-parent-link" id="personLocationLink">'+safe(location.name)+'</button>':'Unassigned')+'</p><p class="folder-description">'+safe(p.details||'')+'</p><div id="editPersonPanel" class="place-form hidden"><input id="personEditName" value="'+safe(p.name)+'"><input id="personEditRole" value="'+safe(p.role||'')+'"><select id="personEditPlace"><option value="">None</option>'+c.places.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join('')+'</select><textarea id="personEditDetails">'+safe(p.details||'')+'</textarea><div class="actions"><button class="primary" id="savePersonEdits">Save changes</button><button id="cancelPersonEdits">Cancel</button><button id="deletePerson">Delete Person</button></div></div>'+relationshipPanel(p,c)+'<div class="place-hub-section"><h3>Notes</h3><div id="personComments"></div></div>';$('closePerson').onclick=()=>{selectedPersonId=null;renderPersonDetail()};if(location)$('personLocationLink').onclick=()=>{tab('places');openPlace(location.id)};$('editPersonDetails').onclick=()=>$('editPersonPanel').classList.toggle('hidden');$('cancelPersonEdits').onclick=()=>$('editPersonPanel').classList.add('hidden');$('deletePerson').onclick=()=>{if(!confirm('Delete this person?'))return;c.people=c.people.filter(x=>x.id!==p.id);selectedPersonId=null;save();renderPlacesPeople();renderPersonDetail()};$('personEditPlace').value=p.placeId||'';$('savePersonEdits').onclick=()=>{if(!$('personEditName').value.trim())return;p.name=$('personEditName').value.trim();p.role=$('personEditRole').value.trim();p.placeId=$('personEditPlace').value;p.details=$('personEditDetails').value.trim();save();renderPlacesPeople();renderPersonDetail()};wireRelationships(p,c);renderThreadNotes(p,'personComments');$('personDetail').insertAdjacentHTML('beforeend',relatedNotes('person',p.id));wireMentionLinks($('personDetail'))}
 function renderPlacesPeople(){const c=current();if(!c)return;renderParentSelect();$('personPlace').innerHTML='<option value="">None</option>'+c.places.map(p=>'<option value="'+safe(p.id)+'">'+safe(p.name)+' ('+safe(p.type)+')</option>').join('');
