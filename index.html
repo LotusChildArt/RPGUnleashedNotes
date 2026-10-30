@@ -60,6 +60,7 @@ const blank=(name,gm='')=>({id:uid(),name,gm,places:[],people:[],quests:[],entri
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 const state={theme:stored?.theme||'light',view:stored?.view||'auto',role:stored?.role==='player'?'player':'gm',campaigns:Array.isArray(stored?.campaigns)?stored.campaigns:[],activeCampaignId:stored?.activeCampaignId||null};
 state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= []});
+const expandedPlacePeople=new Set();
 let editingQuest=null, selectedQuestId=null, selectedPlaceId=null, selectedPersonId=null, lastParentChoice=null;
 function save(){try{localStorage.setItem(KEY,JSON.stringify({...state,version:2}))}catch(e){alert('Browser storage unavailable. Changes may not persist.')}}
 function safe(v){return String(v??'').replace(/[&<>"']/g,a=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]))}
@@ -96,7 +97,9 @@ function renderPlaceHub(){
  const c=current(),p=c?.places.find(x=>x.id===selectedPlaceId);
  if(!p){showPlaceIndex();return}
  p.comments ||= [];
- const children=c.places.filter(x=>x.parentId===p.id),people=c.people.filter(x=>x.placeId===p.id),quests=c.quests.filter(x=>x.placeId===p.id);
+ const children=c.places.filter(x=>x.parentId===p.id),quests=c.quests.filter(x=>x.placeId===p.id);
+ const people=c.people.map(person=>{const path=[];const seen=new Set();let location=c.places.find(x=>x.id===person.placeId);while(location&&!seen.has(location.id)){seen.add(location.id);if(location.id===p.id)return {person,path:path.reverse()};path.push(location.name);location=c.places.find(x=>x.id===location.parentId)}return null}).filter(Boolean);
+
  const parent=c.places.find(x=>x.id===p.parentId);
  const options=parentOptions(c,locationTypes.includes(p.type)?p.type:'Other',p.id);
  const parentOpts='<option value="">None — independent location</option>'+options.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+' ('+safe(x.type)+')</option>').join('');
@@ -107,9 +110,10 @@ function renderPlaceHub(){
  +(p.description?'<p class="folder-description">'+safe(p.description)+'</p>':'')
  +'<div class="place-edit-panel hidden" id="placeEditPanel"><h3>Edit Place</h3><div class="place-form"><div class="field"><label for="editPlaceName">Name</label><input id="editPlaceName" value="'+safe(p.name)+'"></div><div class="field"><label for="editPlaceDesc">Description</label><textarea id="editPlaceDesc">'+safe(p.description||'')+'</textarea></div><div class="field"><label for="movePlace">Located within</label><select id="movePlace">'+parentOpts+'</select></div><div class="actions"><button class="primary" id="savePlaceEdits">Save changes</button><button id="cancelPlaceEdits">Cancel</button><button id="deletePlace">Delete Place</button></div></div></div>'
  +'<div class="place-hub-section"><h3>Places within '+safe(p.name)+'</h3>'+(children.map(x=>'<button class="place-hub-link" data-hub-place="'+safe(x.id)+'"><strong>'+safe(x.name)+'</strong><div class="subtle-info">'+safe(x.type)+'</div></button>').join('')||'<p class="muted">No places within this location.</p>')+'</div>'
- +'<div class="place-hub-section"><h3>People</h3>'+(people.map(x=>'<button class="place-hub-link" data-hub-person="'+safe(x.id)+'"><strong>'+safe(x.name)+'</strong><div class="subtle-info">'+safe(x.role||'Person')+'</div></button>').join('')||'<p class="muted">No people associated with this location.</p>')+'</div>'
+ +'<div class="place-hub-section"><button class="place-add-toggle" id="togglePlacePeople" aria-expanded="'+expandedPlacePeople.has(p.id)+'">'+(expandedPlacePeople.has(p.id)?'▾':'▸')+' People ('+people.length+')</button><div id="placePeopleList" '+(expandedPlacePeople.has(p.id)?'':'class="hidden"')+'>'+(people.map(({person,path})=>'<button class="place-hub-link" data-hub-person="'+safe(person.id)+'"><strong>'+safe(person.name)+'</strong><div class="subtle-info">'+safe([person.role||'Person',...path].join(' - '))+'</div></button>').join('')||'<p class="muted">No people associated with this location.</p>')+'</div></div>'
  +'<div class="place-hub-section"><h3>Quests</h3>'+(quests.map(x=>'<button class="place-hub-link" data-hub-quest="'+safe(x.id)+'"><strong>'+safe(x.title)+'</strong><div class="subtle-info">'+safe(x.status)+'</div></button>').join('')||'<p class="muted">No quests associated with this location.</p>')+'</div>'
  +'<div class="place-hub-section"><h3>Notes</h3><div id="placeComments">'+entries+'</div><button class="place-add-toggle" id="togglePlaceNote">+ Note</button><div class="place-note-form hidden" id="placeNoteFields"><label class="note-source-row"><input type="checkbox" id="placeAddSource"> Add source</label><div class="hidden" id="placeSourceFields"><select id="placeCommentAuthor">'+commentAuthors+'</select><input id="customCommentAuthor" class="hidden" placeholder="Name"></div><textarea id="placeCommentBody" placeholder="Add a note..."></textarea><button id="postPlaceComment" class="primary">Post Note</button></div></div>';
+ $('togglePlacePeople').onclick=()=>{if(expandedPlacePeople.has(p.id))expandedPlacePeople.delete(p.id);else expandedPlacePeople.add(p.id);renderPlaceHub()};
  document.querySelectorAll('[data-toggle-thread]').forEach(b=>b.onclick=()=>{let id=b.dataset.toggleThread;if(expandedThreads.has(id))expandedThreads.delete(id);else expandedThreads.add(id);renderPlaceHub()});
  document.querySelectorAll('[data-reply-note]').forEach(b=>b.onclick=()=>{$('replyForm-'+b.dataset.replyNote).classList.toggle('hidden')});
  document.querySelectorAll('[data-cancel-reply]').forEach(b=>b.onclick=()=>{$('replyForm-'+b.dataset.cancelReply).classList.add('hidden')});
