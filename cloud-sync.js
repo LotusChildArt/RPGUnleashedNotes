@@ -268,6 +268,7 @@ async function restoreRecoveryById(id,remote){
  }
  blocked=true;
  bridge.installCloudCampaign(remote.campaign);
+ syncReference=cleanCampaign(remote.campaign);
  if(remote.roomId===roomId){linkedCampaign=id;linkedVersion=remote.updatedAt;}
  else {linkedCampaign=null;linkedVersion=null;}
  blocked=false;status();
