@@ -5,7 +5,7 @@ const PROJECT_URL='https://pxrbjtrbnvzjufsmcbza.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_kN3vgNYVPJTvpfMUL0QTXg_8U1mOExU';
 const db=createClient(PROJECT_URL,PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const bridge=window.RPGNotesBridge;
-let roomId=null,owlRole='UNKNOWN',loggedInUser=null,linkedCampaign=null,lastSnapshot='',lastRevision='',saving=false,saveAgain=false,cloudTimer=null,pollTimer=null;
+let roomId=null,owlRole='UNKNOWN',loggedInUser=null,linkedCampaign=null,lastSnapshot='',lastRevision='',saving=false,saveAgain=false,syncBlocked=false,cloudTimer=null,pollTimer=null;
 const el=id=>document.getElementById(id);
 const message=(text)=>{if(el('cloudStatus'))el('cloudStatus').textContent=text};
 const remoteOnly=()=>owlRole==='PLAYER';
@@ -27,16 +27,16 @@ async function findRoomCampaign(){
  if(!loggedInUser||!roomId)return;
  const {data,error}=await db.from('campaign_documents').select('id,payload').eq('room_id',roomId).maybeSingle();
  if(error){message('Cloud read error: '+error.message);return}
- if(!data){linkedCampaign=null;setAuthUI();return}
- linkedCampaign=data.id;setAuthUI();
+ if(!data){linkedCampaign=null;syncBlocked=false;setAuthUI();return}
+ linkedCampaign=data.id;syncBlocked=false;setAuthUI();
  const local=bridge.getCampaignById(data.id);
  if(!local){bridge.installCloudCampaign(data.payload);message('Loaded the campaign linked to this Owlbear room.');}
- else if(JSON.stringify(local)!==JSON.stringify(data.payload))message('A different copy of this campaign is in Supabase. Export a backup, then use Load Cloud Campaigns to choose whether to replace your local copy.');
+ else if(JSON.stringify(local)!==JSON.stringify(data.payload)){syncBlocked=true;message('Cloud updates paused: your local and cloud copies differ. Use Load Cloud Campaigns to choose a copy, or Publish Current Campaign to intentionally replace the cloud copy.');}
  else message('Campaign connected to this Owlbear room.');
 }
 async function push(){
  if(saving){saveAgain=true;return}
- if(!loggedInUser||owlRole!=='GM'||!linkedCampaign)return;
+ if(!loggedInUser||owlRole!=='GM'||!linkedCampaign||syncBlocked)return;
  const campaign=bridge.getCampaignById(linkedCampaign);
  if(!campaign)return;
  saving=true;
@@ -47,7 +47,7 @@ async function push(){
  if(saveAgain){saveAgain=false;schedulePush()}
 }
 function schedulePush(){
- if(remoteOnly()||!linkedCampaign||!loggedInUser)return;
+ if(remoteOnly()||!linkedCampaign||!loggedInUser||syncBlocked)return;
  clearTimeout(cloudTimer);cloudTimer=setTimeout(push,950);
 }
 window.rpgScheduleCloudSave=schedulePush;
@@ -56,10 +56,18 @@ async function publish(){
  if(!loggedInUser)return message('Sign in to your GM account first.');
  const campaign=bridge.getActiveCampaign();
  if(!campaign)return message('Open a campaign before publishing.');
- if(!confirm('Publish "'+campaign.name+'" to this Owlbear room? This makes its player-safe information available to everyone who has the room link. Existing local campaign data will remain stored in this browser.'))return;
+ if(!confirm('Publish "'+campaign.name+'" to this Owlbear room? This replaces the room’s published player information with a sanitized version of this campaign. A local JSON backup will be downloaded first.'))return;
+ bridge.exportBackup();
+ const {data:existing,error:lookupError}=await db.from('campaign_documents').select('id').eq('room_id',roomId).maybeSingle();
+ if(lookupError)return message('Could not verify room ownership: '+lookupError.message);
+ if(existing&&existing.id!==campaign.id){
+  if(!confirm('Another campaign you own is linked to this room. Switch the room to "'+campaign.name+'"?'))return;
+  const {error:unlinkError}=await db.from('campaign_documents').update({room_id:null}).eq('id',existing.id);
+  if(unlinkError)return message('Could not unlink the old campaign: '+unlinkError.message);
+ }
  const {error}=await db.from('campaign_documents').upsert({id:campaign.id,owner_id:loggedInUser.id,room_id:roomId,payload:campaign},{onConflict:'id'});
  if(error)return message('Could not link campaign: '+error.message);
- linkedCampaign=campaign.id;setAuthUI();message('Published! Later edits will automatically sync to Supabase.');
+ linkedCampaign=campaign.id;syncBlocked=false;setAuthUI();message('Published! Later edits will automatically sync to Supabase.');
 }
 async function loadOwned(){
  if(!loggedInUser)return message('Sign in before loading campaigns.');
@@ -71,7 +79,7 @@ async function loadOwned(){
  for(const entry of data){
   const local=bridge.getCampaignById(entry.id);
   if(local&&JSON.stringify(local)!==JSON.stringify(entry.payload)&&!confirm('Replace the local copy of "'+(local.name||entry.payload.name)+'" with its cloud copy? A local JSON backup has just been downloaded.'))continue;
-  bridge.installCloudCampaign(entry.payload);imported++;
+  bridge.installCloudCampaign(entry.payload);if(entry.id===linkedCampaign)syncBlocked=false;imported++;
  }
  message(imported+' campaign(s) loaded from Supabase. Your local backup was downloaded first.');
  if(roomId)await findRoomCampaign();
@@ -89,7 +97,7 @@ async function roleChanged(nextRole){
  if(role===owlRole)return;
  owlRole=role;
  if(pollTimer){clearInterval(pollTimer);pollTimer=null}
- linkedCampaign=null;
+ linkedCampaign=null;syncBlocked=false;
  bridge.applyOwlRole(role);
  setAuthUI();
  if(role==='PLAYER'){
@@ -119,7 +127,7 @@ function wireAuth(){
   message(data.session?'Account created and signed in.':'Account created. Confirm your email through Supabase before signing in.');
  });
  el('cloudSignOut')?.addEventListener('click',async()=>{
-  await db.auth.signOut();loggedInUser=null;linkedCampaign=null;setAuthUI();message('Signed out of Supabase. Local campaigns are still in this browser.');
+  await db.auth.signOut();loggedInUser=null;linkedCampaign=null;syncBlocked=false;setAuthUI();message('Signed out of Supabase. Local campaigns are still in this browser.');
  });
  el('cloudPublish')?.addEventListener('click',publish);
  el('cloudLoad')?.addEventListener('click',loadOwned);
