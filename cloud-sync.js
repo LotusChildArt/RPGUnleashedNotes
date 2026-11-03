@@ -27,7 +27,7 @@ let credentials={};
 try{const stored=JSON.parse(localStorage.getItem(CREDS_KEY)||'{}');if(stored&&typeof stored==='object'&&!Array.isArray(stored))credentials=stored}catch{}
 const msg=s=>{if(el('cloudStatus'))el('cloudStatus').textContent=s};
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
-const cleanCampaign=c=>{if(!c||typeof c!=='object')return c;const copy={...c};delete copy.acceptedQuestIds;delete copy.partyQuestNotes;delete copy.sharedNotes;return copy};
+const cleanCampaign=c=>{if(!c||typeof c!=='object')return c;const copy=bridge.normalizeBoardCampaign(c);delete copy.acceptedQuestIds;delete copy.partyQuestNotes;delete copy.sharedNotes;return copy};
 const same=(a,b)=>JSON.stringify(canonical(cleanCampaign(a)))===JSON.stringify(canonical(cleanCampaign(b)));
 const validKey=k=>typeof k==='string'&&/^[A-Za-z0-9_-]{43}$/.test(k);
 const saveCredentials=()=>localStorage.setItem(CREDS_KEY,JSON.stringify(credentials));
@@ -94,6 +94,8 @@ async function recognizeRoom(){
    if(local&&!same(local,remote.campaign)){blocked=true;msg('Local and cloud copies differ. Download a backup and select Restore Cloud Campaign or Publish / Link to choose which one to keep.')}
    else if(!local)bridge.installCloudCampaign(remote.campaign);
    linkedCampaign=id;linkedVersion=remote.updatedAt;lastBoardRevision='';
+   const needsBoardMigration=(remote.campaign.places||[]).some(p=>p.type!=='Quest Board'&&Array.isArray(p.questBoard)&&p.questBoard.length);
+   if(needsBoardMigration&&!blocked)scheduleSave();
    status();
    if(!blocked)msg('Campaign connected. Changes sync to your room.');
    return;
@@ -124,9 +126,13 @@ async function publish(){
  }
  try{
   const remote=await request('read',campaign.id,known.key);
-  if(!same(remote.campaign,campaign)){
-   if(!confirm('Your browser and cloud copies differ. Replace the CLOUD version with your current LOCAL campaign? A JSON backup will be downloaded first.'))return;
-   bridge.exportBackup();
+  const different=!same(remote.campaign,campaign);
+  const legacyBoard=(remote.campaign.places||[]).some(p=>p.type!=='Quest Board'&&Array.isArray(p.questBoard)&&p.questBoard.length);
+  if(different||legacyBoard){
+   if(different){
+    if(!confirm('Your browser and cloud copies differ. Replace the CLOUD version with your current LOCAL campaign? A JSON backup will be downloaded first.'))return;
+    bridge.exportBackup();
+   }
    const written=await request('write',campaign.id,known.key,{payload:cleanCampaign(campaign),expectedUpdatedAt:remote.updatedAt});
    linkedVersion=written.updatedAt;
   }else linkedVersion=remote.updatedAt;
