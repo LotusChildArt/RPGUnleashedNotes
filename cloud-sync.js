@@ -73,8 +73,11 @@ async function recognizeRoom(){
  for(const [id,entry] of Object.entries(credentials)){
   if(!validKey(entry?.key))continue;
   try{
-   const remote=await readCloud(id,entry.key,true);
+   const remote=await readCloud(id,entry.key,false);
    if(remote.roomId!==roomId)continue;
+   const local=bridge.getCampaignById(id);
+   if(local&&!same(local,remote.campaign)){blocked=true;msg('Local and cloud copies differ. Download a backup and select Restore Cloud Campaign or Publish / Link to choose which one to keep.')}
+   else if(!local)bridge.installCloudCampaign(remote.campaign);
    linkedCampaign=id;linkedVersion=remote.updatedAt;
    status();
    if(!blocked)msg('Campaign connected. Changes sync to your room.');
@@ -161,16 +164,24 @@ async function importRecovery(file){
  credentials[content.campaignId]={key:content.recoveryKey,name:remote.campaign?.name||content.campaign,createdAt:content.createdAt};
  saveCredentials();
  status();msg('Recovery key accepted. Choose Restore Cloud Campaign to retrieve the campaign.');
- if(owlRole==='GM'&&remote.roomId===roomId)await restoreRecoveryById(content.campaignId,remote);
+ if(owlRole==='GM')await restoreRecoveryById(content.campaignId,remote);
 }
 async function restoreRecoveryById(id,remote){
  const local=bridge.getCampaignById(id);
  if(local&&!same(local,remote.campaign)){
-  blocked=true;msg('Recovery key imported, but your local campaign differs. Select Restore Cloud Campaign to choose a version.');return;
+  if(!confirm('This computer has a different local copy of "'+(local.name||'the campaign')+'". Replace it with the cloud copy? A JSON backup will be downloaded first.')){
+   blocked=true;
+   if(remote.roomId===roomId){linkedCampaign=id;linkedVersion=remote.updatedAt;}
+   msg('Recovery key imported. Local version retained. Choose Restore Cloud Campaign to load the cloud version.');return;
+  }
+  bridge.exportBackup();
  }
- if(!local)bridge.installCloudCampaign(remote.campaign);
- linkedCampaign=id;linkedVersion=remote.updatedAt;blocked=false;status();
- msg('Recovery file imported. Campaign connected to this room.');
+ blocked=true;
+ bridge.installCloudCampaign(remote.campaign);
+ if(remote.roomId===roomId){linkedCampaign=id;linkedVersion=remote.updatedAt;}
+ else {linkedCampaign=null;linkedVersion=null;}
+ blocked=false;status();
+ msg(remote.roomId===roomId?'Recovery imported; campaign connected to this room.':'Recovery imported and cloud campaign restored. Use Publish / Link to associate it with this room.');
 }
 async function rotate(){
  if(owlRole!=='GM')return msg('Only Owlbear GMs can rotate campaign recovery credentials in the app.');
@@ -224,8 +235,7 @@ function wire(){
   finally{event.target.value=''}
  });
  // "Restore Cloud Campaign" also allows selecting a JSON recovery file
- el('cloudRestore')?.addEventListener('contextmenu',event=>{event.preventDefault();el('cloudRecoveryFile')?.click()});
- const uploadButton=document.createElement('button');
+  const uploadButton=document.createElement('button');
  uploadButton.textContent='Import Recovery File';
  uploadButton.id='cloudRecoveryImportButton';
  uploadButton.addEventListener('click',()=>el('cloudRecoveryFile')?.click());
@@ -235,7 +245,6 @@ function wire(){
   try{await importRecovery(file)}catch(error){msg('Recovery import failed: '+error.message)}
   finally{event.target.value=''}
  });
- document.querySelectorAll('[data-open]').forEach(()=>{});
  document.addEventListener('click',event=>{
   if(event.target.closest('[data-open]'))setTimeout(status,40);
  });
