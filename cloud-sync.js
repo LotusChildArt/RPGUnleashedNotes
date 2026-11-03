@@ -225,6 +225,13 @@ async function refreshBoardActivity(force=false){
 }
 window.rpgRefreshSharedActivity=()=>refreshBoardActivity(true);
 
+window.rpgDeleteSharedNote=async noteId=>{
+ if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open inside an Owlbear room to delete shared notes.');
+ const {data,error}=await db.rpc('delete_room_shared_note',{requested_room_id:roomId,requested_note_id:noteId});
+ if(error)throw Error(error.message);
+ if(data!==true)throw Error('Note could not be deleted or was already removed.');
+ if(owlRole==='PLAYER')await refreshPlayer();else await refreshBoardActivity(true);
+};
 window.rpgPostSharedNote=async (kind,type,targetId,title,author,body,parentId=null,mentions=[])=>{
  if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open RPGUnleashedNotes inside an Owlbear room.');
  if(kind!=='comment'&&kind!=='journal')throw Error('Invalid note type.');
