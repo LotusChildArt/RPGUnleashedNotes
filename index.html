@@ -74,7 +74,7 @@ body.owlbear-player .note-controls,body.owlbear-player #cycleQuestStatus,body.ow
 <p id="cloudLinked" class="muted">No published campaign linked.</p>
 <div class="actions"><button class="primary" id="cloudPublish">Publish Current Campaign to Room</button><button id="cloudLoad">Load Cloud Campaigns</button><button id="cloudSignOut">Sign Out</button></div>
 </div>
-<div class="actions"><button id="cloudExport">Download Local JSON Backup</button></div>
+<div class="actions"><button id="cloudExport">Download Local JSON Backup</button><button id="cloudImport">Import JSON Backup</button><input type="file" id="cloudImportFile" accept=".json,application/json" class="hidden"></div>
 <p class="muted" id="cloudStatus" aria-live="polite">Checking connection…</p>
 </div>
 </div></section>
@@ -444,6 +444,20 @@ window.RPGNotesBridge={
   state.campaigns=[];state.activeCampaignId=null;
   $('campaignWorkspace').classList.add('hidden');$('campaignPicker').classList.remove('hidden');
   render();$('campaignList').textContent=msg;
+ },
+ importBackup:backup=>{
+  if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN')return 0;
+  const incoming=Array.isArray(backup?.campaigns)?backup.campaigns:[];
+  if(!incoming.length)throw Error('This file has no campaigns to import.');
+  let imported=0;
+  for(const entry of incoming){
+   if(!entry?.id||typeof entry.name!=='string'||!Array.isArray(entry.places)||!Array.isArray(entry.people)||!Array.isArray(entry.quests)||!Array.isArray(entry.entries))throw Error('Unsupported campaign backup format.');
+   const index=state.campaigns.findIndex(c=>c.id===entry.id);
+   if(index!==-1&&!confirm('Replace your local copy of '+entry.name+' with the imported copy?'))continue;
+   if(index===-1)state.campaigns.push(entry);else state.campaigns[index]=entry;
+   imported++;
+  }
+  save();render();return imported;
  },
  exportBackup:()=>{
   let backup={...state,version:3};
