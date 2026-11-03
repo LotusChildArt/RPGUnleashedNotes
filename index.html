@@ -4,6 +4,7 @@
 :root{--bg:#fff;--surface:#fff;--raised:#e4e4e4;--fg:#111;--muted:#555;--edge:#111;--accent:#d9d9d9}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:Arial,sans-serif}
 body.dark{--bg:#14171c;--surface:#20252d;--raised:#2b323d;--fg:#eef1f6;--muted:#d5dce6;--edge:#84909d;--accent:#405b82}
+body.dark .menu-symbol{filter:invert(1)}
 .shell{max-width:1000px;margin:auto;padding:22px 16px 60px}header,.line,.tools,.actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 h1{font-size:26px;margin:0}h2{font-size:19px;margin:0 0 15px}.muted,.subtitle,.footer,.result{color:var(--muted);font-size:13px}.subtitle{margin-top:5px}
 .tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:2px solid var(--edge);margin:22px 0 18px}.tab{border-radius:12px 12px 0 0;border-bottom:0;padding:11px 17px;white-space:nowrap}.tab.active{background:var(--surface);position:relative;top:2px}
