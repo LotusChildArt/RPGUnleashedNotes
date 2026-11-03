@@ -18,11 +18,28 @@ function legacyDay(c){
  const base=new Date(0);base.setUTCHours(0,0,0,0);base.setUTCFullYear(1,0,1);
  return {day:Math.max(0,Math.round((dt-base)/86400000)),phase:Math.min(.999999,Math.max(0,(h*60+min)/1440))};
 }
+function isOldDefaultClock(k){
+ const expected=defaultClock();
+ return k?.name===expected.name&&k.hours===expected.hours&&k.minutes===expected.minutes&&k.format===expected.format&&JSON.stringify(k.periods)===JSON.stringify(expected.periods);
+}
+function isOldDefaultCalendar(k){
+ const expected=defaultCalendar();
+ return k?.name===expected.name&&k.leap===expected.leap&&k.weekLength===expected.weekLength&&k.weekMode===expected.weekMode&&k.groupName===expected.groupName&&k.offset===expected.offset&&JSON.stringify(k.months)===JSON.stringify(expected.months)&&JSON.stringify(k.dayNames)===JSON.stringify(expected.dayNames);
+}
 function data(){
  const c=current();if(!c)return null;
  if(!c.timekeeping||!Array.isArray(c.timekeeping.clocks)||!Array.isArray(c.timekeeping.calendars)){
   const legacy=legacyDay(c);
-  c.timekeeping={day:legacy.day,phase:legacy.phase,clocks:[defaultClock()],calendars:[defaultCalendar()]};
+  c.timekeeping={day:legacy.day,phase:legacy.phase,clocks:[],calendars:[],automaticPresetsRemoved:true};
+ }else if(!c.timekeeping.automaticPresetsRemoved){
+  // Previous releases created one traditional clock and calendar automatically.
+  // Remove only one exact untouched match per type; preserve edited or duplicated entries.
+  const oldClock=c.timekeeping.clocks.findIndex(isOldDefaultClock);
+  const oldCalendar=c.timekeeping.calendars.findIndex(isOldDefaultCalendar);
+  if(oldClock!==-1)c.timekeeping.clocks.splice(oldClock,1);
+  if(oldCalendar!==-1)c.timekeeping.calendars.splice(oldCalendar,1);
+  c.timekeeping.automaticPresetsRemoved=true;
+  if(gm())save();
  }
  c.timekeeping.day=Math.max(0,Math.floor(Number(c.timekeeping.day)||0));
  c.timekeeping.phase=Math.min(.999999999,Math.max(0,Number(c.timekeeping.phase)||0));
