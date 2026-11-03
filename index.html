@@ -147,7 +147,7 @@ function questBoardHTML(p,c){
    (quest.description?'<p>'+safe(quest.description)+'</p>':'')+
    (quest.rewards?'<div class="subtle-info">Reward: '+safe(quest.rewards)+'</div>':'')+
    '<div class="actions"><button class="small" data-board-inspect="'+safe(quest.id)+'">View Quest</button>'+
-   (!isGM&&!closed&&!acceptedHere?'<button class="primary small" data-board-accept="'+safe(quest.id)+'">Accept for Party</button>':'')+
+   (!isGM&&!closed&&!acceptedHere?(owlAccessRole==='GM'?'<button class="small" disabled>Accept for Party (Preview)</button>':'<button class="primary small" data-board-accept="'+safe(quest.id)+'">Accept for Party</button>'):'')+
    (isGM?'<button class="small" data-board-close="'+safe(quest.id)+'">'+(post.closed?'Reopen':'Close')+'</button><button class="small" data-board-remove="'+safe(quest.id)+'">Remove</button>':'')+
    '</div></div>';
  }).join(''):'<p class="muted">No quests posted here yet.</p>';
