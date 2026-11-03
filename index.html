@@ -161,7 +161,7 @@ document.querySelectorAll('[data-camp-tab]').forEach(b=>b.onclick=()=>{if(b.data
 function openCampaign(id){$('questMainPanel').classList.remove('hidden');resetPeopleList();selectedQuestId=null;$('questList').classList.remove('hidden');$('questDetail').classList.add('hidden');if(!state.campaigns.some(c=>c.id===id))return;state.activeCampaignId=id;$('campaignPicker').classList.add('hidden');$('campaignWorkspace').classList.remove('hidden');$('questEditor').classList.remove('hidden');toggleQuest(false);selectedPlaceId=null;selectedPersonId=null;tab('quests');save();render();$('questEditor').classList.toggle('hidden',state.role==='player');if(owlAccessRole==='GM')window.rpgRefreshSharedActivity?.()}
 $('newCampaign').onclick=()=>{const n=prompt('Campaign name');if(!n?.trim())return;const gm=prompt('GM name (optional)')||'';const c=blank(n.trim(),gm.trim());state.campaigns.push(c);openCampaign(c.id)};
 $('toggleAddPlace').onclick=()=>{$('addPlaceFields').classList.remove('hidden');$('placeIndex').classList.add('hidden')};$('cancelPlaceCreate').onclick=()=>{$('addPlaceFields').classList.add('hidden');$('placeIndex').classList.remove('hidden')};
-$('placeType').onchange=()=>{$('customPlaceWrap').classList.toggle('hidden',$('placeType').value!=='Other');lastParentChoice='';renderParentSelect()};$('placeParent').onchange=()=>{lastParentChoice=$('placeParent').value};
+$('placeType').onchange=()=>{$('customPlaceWrap').classList.toggle('hidden',$('placeType').value!=='Other');if($('placeType').value==='Quest Board'&&!$('placeName').value.trim())$('placeName').value='Quest Board';lastParentChoice='';renderParentSelect()};$('placeParent').onchange=()=>{lastParentChoice=$('placeParent').value};
 const locationTypes=['World','Country','Region','Capital','City','Town','Village','Shop','POI','Quest Board','Other'];
 const settlementTypes=['Capital','City','Town','Village'];
 function allowedParent(type,parent){
@@ -205,7 +205,7 @@ function questBoardHTML(p,c){
  if(p.type!=='Quest Board')return '';
  const posts=p.questBoard||[],accepted=acceptedBoardIds(c),isGM=state.role==='gm';
  const available=c.quests.filter(q=>!posts.some(e=>e.questId===q.id));
- let output='<div class="place-hub-section"><h3>Quest Board</h3>';
+ let output='<div class="place-hub-section"><h3>Posted Quests</h3>';
  output+=posts.length?posts.map(post=>{
   const quest=c.quests.find(q=>q.id===post.questId);
   if(!quest)return '';
@@ -367,7 +367,7 @@ function renderPlaceHub(){
  $('editPlace').onclick=()=>$('placeEditPanel').classList.toggle('hidden');
  $('cancelPlaceEdits').onclick=()=>$('placeEditPanel').classList.add('hidden');$('deletePlace').onclick=()=>{if(!confirm('Delete this place? Nested places become independent, and associated people and quests become unassigned.'))return;c.places=c.places.filter(x=>x.id!==p.id);c.places.forEach(x=>{if(x.parentId===p.id)x.parentId=''});c.people.forEach(x=>{if(x.placeId===p.id)x.placeId=''});c.quests.forEach(x=>{if(x.placeId===p.id)x.placeId=''});selectedPlaceId=null;save();showPlaceIndex();render()};
  $('movePlace').value=p.parentId||'';
- $('savePlaceEdits').onclick=()=>{const name=$('editPlaceName').value.trim(),parentId=$('movePlace').value;if(!name)return alert('Enter a place name.');if(parentId&&!options.some(x=>x.id===parentId))return alert('Invalid parent location.');p.name=name;p.description=$('editPlaceDesc').value.trim();p.parentId=parentId;save();renderPlacesPeople();renderPlaceHub()};
+ $('savePlaceEdits').onclick=()=>{const name=$('editPlaceName').value.trim(),parentId=$('movePlace').value;if(!name)return alert('Enter a place name.');if(p.type==='Quest Board'&&!parentId)return alert('A Quest Board must belong to a location.');if(parentId&&!options.some(x=>x.id===parentId))return alert('Invalid parent location.');p.name=name;p.description=$('editPlaceDesc').value.trim();p.parentId=parentId;save();renderPlacesPeople();renderPlaceHub()};
  $('togglePlaceNote').onclick=()=>$('placeNoteFields').classList.toggle('hidden');
  $('placeAddSource').onchange=()=>$('placeSourceFields').classList.toggle('hidden',!$('placeAddSource').checked);
  $('placeCommentAuthor').onchange=()=>$('customCommentAuthor').classList.toggle('hidden',$('placeCommentAuthor').value!=='custom');
