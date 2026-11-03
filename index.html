@@ -722,10 +722,10 @@ $('campaignDateText').textContent=standardMonthNames[month]+' '+day+', Year '+ye
 $('timeGMControls').classList.toggle('hidden',!isTimeGM());
 $('timeDateInput').value=String(year).padStart(4,'0')+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
 $('timeClockInput').value=String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0');
-const view=new Date(Date.UTC(year,month+calendarOffset,1));
+const view=new Date('2000-01-01T00:00:00Z');view.setUTCFullYear(year,month+calendarOffset,1);
 const vy=view.getUTCFullYear(),vm=view.getUTCMonth();
 $('calendarTitle').textContent=standardMonthNames[vm]+' '+vy;
-const first=view.getUTCDay(),count=new Date(Date.UTC(vy,vm+1,0)).getUTCDate();
+const endOfMonth=new Date('2000-01-01T00:00:00Z');endOfMonth.setUTCFullYear(vy,vm+1,0);const first=view.getUTCDay(),count=endOfMonth.getUTCDate();
 let out=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>'<span class="weekday">'+x+'</span>').join('');
 for(let i=0;i<first;i++)out+='<span class="empty-day"></span>';
 for(let i=1;i<=count;i++){const isCurrent=vy===year&&vm===month&&i===day;out+='<span class="'+(isCurrent?'current-day':'')+'" '+(isCurrent?'aria-current="date"':'')+'>'+i+'</span>'}
