@@ -43,7 +43,7 @@ body.player-view #relationshipsSection #reviewRelationships,body.player-view #re
 .field-row.hidden,#singlePersonExtras.hidden,#personRoleField.hidden{display:none!important}.groups-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.group-member-line{display:flex;align-items:center;gap:8px}.group-member-line>.place-hub-link{flex:1;min-width:0}.group-eye{min-width:36px}.group-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}.group-head>h2,.group-head>h3{grid-column:1;margin:0}.group-head>button{grid-column:2;justify-self:center}.group-head h3{margin:0}.group-form{margin-top:10px}
 #personCreatePanel:has(> #addPersonFields.hidden),#addPlacePanel:has(> #addPlaceFields.hidden),#questEditor:has(> #questFields.hidden){display:none}
 
-body.owlbear-player .note-controls,body.owlbear-player #cycleQuestStatus,body.owlbear-player #notes #add,body.owlbear-player #notes [data-delete-entry],body.owlbear-player #notes .primary,body.owlbear-player [id$='Toggle'],body.player-view #cloudPanel,body.player-view #newCampaign,body.player-view #campaignPickerHome,body.player-view #editCampaignDetails,body.player-view #deleteQuest,body.player-view #notes #add,body.player-view #notes [data-delete-entry],body.player-view #notes .primary{display:none!important}
+body.owlbear-player #cloudPanel,body.owlbear-player .note-controls,body.owlbear-player #cycleQuestStatus,body.owlbear-player #notes #add,body.owlbear-player #notes [data-delete-entry],body.owlbear-player #notes .primary,body.owlbear-player [id$='Toggle'],body.player-view #cloudPanel,body.player-view #newCampaign,body.player-view #campaignPickerHome,body.player-view #editCampaignDetails,body.player-view #deleteQuest,body.player-view #notes #add,body.player-view #notes [data-delete-entry],body.player-view #notes .primary{display:none!important}
 </style></head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
@@ -61,20 +61,21 @@ body.owlbear-player .note-controls,body.owlbear-player #cycleQuestStatus,body.ow
 <section id="settings" class="hidden camp-pane"><div class="panel"><h2>Options</h2><div class="main-menu-actions"><button id="campaignGoHome" class="main-menu-button">Main Menu</button><button id="campaignGoList" class="main-menu-button">Campaigns</button></div><button id="editCampaignDetails" class="main-menu-button" style="margin-top:12px">Edit Campaign Details</button><div id="campaignDetailsForm" class="place-form hidden" style="margin-top:12px"><div class="field"><label for="editCampaignName">Campaign name</label><input id="editCampaignName"></div><div class="field"><label for="editCampaignGM">GM name</label><input id="editCampaignGM"></div><div class="actions"><button id="saveCampaignDetails" class="primary">Save Changes</button><button id="cancelCampaignDetails">Cancel</button></div></div><div class="field" style="margin-top:18px"><label for="campaignThemeToggle">Theme</label><select id="campaignThemeToggle"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select></div>
 <div id="cloudPanel" class="place-hub-section">
 <h3>Owlbear · Shared Campaign</h3>
-<p class="muted">GM access is controlled by Owlbear. Supabase sign-in separately protects private campaign data. Only a sanitized player copy is shared.</p>
-<p id="cloudRoom" class="muted">Checking Owlbear room…</p>
-<div id="cloudAuthForm" class="place-form">
-<div class="field"><label for="cloudEmail">GM account email</label><input id="cloudEmail" type="email" autocomplete="email" placeholder="Email"></div>
-<div class="field"><label for="cloudPassword">Password</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Password"></div>
-<div class="actions"><button class="primary" id="cloudSignIn">Sign In</button><button id="cloudSignUp">Create Account</button></div>
-<p class="muted">On first registration, Supabase may require you to confirm your email. Do not use your Owlbear password here unless you choose to.</p>
+<p class="muted">No additional account required. Your recovery file unlocks this campaign on another device. Keep it private: anyone who has the file can control the campaign.</p>
+<p class="muted">Room: <strong id="cloudRoom">Checking Owlbear…</strong></p>
+<p id="cloudLinked" class="muted">No campaign linked yet.</p>
+<div class="actions">
+<button class="primary" id="cloudPublish">Publish / Link This Campaign</button>
+<button id="cloudRestore">Restore Cloud Campaign</button>
+<button id="cloudRecoveryDownload">Download Recovery File</button>
+<button id="cloudRotate">Replace Recovery Key</button>
 </div>
-<div id="cloudSignedIn" class="hidden">
-<p class="muted">Signed in as <strong id="cloudAccount"></strong></p>
-<p id="cloudLinked" class="muted">No published campaign linked.</p>
-<div class="actions"><button class="primary" id="cloudPublish">Publish Current Campaign to Room</button><button id="cloudLoad">Load Cloud Campaigns</button><button id="cloudSignOut">Sign Out</button></div>
+<input type="file" id="cloudRecoveryFile" accept=".json,application/json" class="hidden">
+<div class="actions">
+<button id="cloudExport">Download Campaign JSON Backup</button>
+<button id="cloudImport">Import Campaign JSON Backup</button>
+<input type="file" id="cloudImportFile" accept=".json,application/json" class="hidden">
 </div>
-<div class="actions"><button id="cloudExport">Download Local JSON Backup</button><button id="cloudImport">Import JSON Backup</button><input type="file" id="cloudImportFile" accept=".json,application/json" class="hidden"></div>
 <p class="muted" id="cloudStatus" aria-live="polite">Checking connection…</p>
 </div>
 </div></section>
