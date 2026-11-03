@@ -202,13 +202,14 @@ async function rotate(){
 }
 
 let lastBoardRevision='';
-async function refreshBoardActivity(){
+async function refreshBoardActivity(force=false){
  if(!roomId||owlRole!=='GM'||!linkedCampaign)return;
  const {data,error}=await db.rpc('get_player_snapshot',{requested_room_id:roomId});
  if(error||!data||data.id!==linkedCampaign)return;
  const revision=JSON.stringify([data.acceptedQuestIds||[],data.partyQuestNotes||[],data.sharedNotes||[]]);
- if(revision!==lastBoardRevision){lastBoardRevision=revision;bridge.applyBoardUpdates(data)}
+ if(force||revision!==lastBoardRevision){lastBoardRevision=revision;bridge.applyBoardUpdates(data)}
 }
+window.rpgRefreshSharedActivity=()=>refreshBoardActivity(true);
 
 window.rpgPostSharedNote=async (kind,type,targetId,title,author,body)=>{
  if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open RPGUnleashedNotes inside an Owlbear room.');
