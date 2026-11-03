@@ -7,6 +7,20 @@ const ENDPOINT=PROJECT_URL+'/functions/v1/credential-campaign';
 const CREDS_KEY='RPGUnleashedNotes.credentials.v1';
 const db=createClient(PROJECT_URL,PUBLISHABLE_KEY);
 const bridge=window.RPGNotesBridge;
+const THEME_META_KEY='com.lotuschild.rpgunleashednotes/theme';
+window.rpgSaveOwlPreferences=async theme=>{
+ if(!OBR.isAvailable||!['light','dark'].includes(theme))return;
+ try{await OBR.player.setMetadata({[THEME_META_KEY]:theme})}
+ catch(e){console.warn('Owlbear appearance preference unavailable',e)}
+};
+async function restoreOwlAppearance(){
+ try{
+  const metadata=await OBR.player.getMetadata();
+  const theme=metadata?.[THEME_META_KEY];
+  if(theme==='dark'||theme==='light')bridge.applyOwlAppearance(theme);
+ }catch(e){console.warn('Unable to restore Owlbear appearance preference',e)}
+}
+
 const el=id=>document.getElementById(id);
 let roomId=null,owlRole='UNKNOWN',linkedCampaign=null,linkedVersion=null,saveTimer=null,saving=false,saveAgain=false,blocked=false,pollTimer=null,lastPlayerSnapshot='';
 let credentials={};
@@ -211,18 +225,20 @@ async function refreshBoardActivity(force=false){
 }
 window.rpgRefreshSharedActivity=()=>refreshBoardActivity(true);
 
-window.rpgPostSharedNote=async (kind,type,targetId,title,author,body)=>{
+window.rpgPostSharedNote=async (kind,type,targetId,title,author,body,parentId=null,mentions=[])=>{
  if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open RPGUnleashedNotes inside an Owlbear room.');
  if(kind!=='comment'&&kind!=='journal')throw Error('Invalid note type.');
  if(typeof body!=='string'||!body.trim()||body.length>2000)throw Error('Note must be between 1 and 2000 characters.');
- const {data,error}=await db.rpc('post_room_shared_note',{
+ const {data,error}=await db.rpc('post_room_shared_note_v2',{
   requested_room_id:roomId,
   requested_kind:kind,
   requested_target_type:kind==='comment'?type:null,
   requested_target_id:kind==='comment'?targetId:null,
   note_title:typeof title==='string'?title:'',
   note_author:(typeof author==='string'&&author.trim()?author.trim():'Player').slice(0,60),
-  note_body:body.trim()
+  note_body:body.trim(),
+  note_parent_id:parentId||null,
+  note_mentions:Array.isArray(mentions)?mentions.slice(0,30).map(m=>({type:m.type,id:m.id,start:m.start,end:m.end})):[]
  });
  if(error)throw Error(error.message);
  if(data!==true)throw Error('This note could not be posted. Verify that the campaign is published, then try again.');
@@ -306,6 +322,7 @@ async function init(){
  OBR.onReady(async()=>{
   try{
    roomId=OBR.room.id;
+   await restoreOwlAppearance();
    await roleChanged(await OBR.player.getRole());
    OBR.player.onChange(player=>{if(player?.role)roleChanged(player.role).catch(e=>msg(e.message))});
   }catch(error){bridge.applyOwlRole('PLAYER');msg('Owlbear connection failed: '+error.message)}
