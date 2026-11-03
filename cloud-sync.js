@@ -132,6 +132,18 @@ function wireAuth(){
  el('cloudPublish')?.addEventListener('click',publish);
  el('cloudLoad')?.addEventListener('click',loadOwned);
  el('cloudExport')?.addEventListener('click',()=>bridge.exportBackup());
+ el('cloudImport')?.addEventListener('click',()=>{if(owlRole==='PLAYER'||owlRole==='UNKNOWN')return;el('cloudImportFile')?.click()});
+ el('cloudImportFile')?.addEventListener('change',async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  try{
+   const backup=JSON.parse(await file.text());
+   if(!confirm('Import campaigns from '+file.name+'? Existing campaigns with matching IDs will ask before replacement.'))return;
+   bridge.exportBackup();
+   const count=bridge.importBackup(backup);
+   message(count+' campaign(s) imported locally. Use Publish Current Campaign to Room when ready.');
+  }catch(error){message('Backup import failed: '+error.message)}
+  finally{event.target.value=''}
+ });
  db.auth.onAuthStateChange((event,session)=>{
   loggedInUser=session?.user||null;setAuthUI();
  });
