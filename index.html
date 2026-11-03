@@ -196,25 +196,80 @@ function wireQuestBoard(p,c){
 }
 
 
+const sharedExpandedThreads=new Set();
+function sharedAuthorOptions(c){
+ return '<option value="">No name</option><option value="custom">Enter a name</option>'+c.people.map(p=>'<option value="npc:'+safe(p.id)+'">NPC: '+safe(p.name)+'</option>').join('');
+}
 function sharedNotePanel(type,id){
  const c=current(),notes=(c?.sharedNotes||[]).filter(n=>n.kind==='comment'&&n.targetType===type&&n.targetId===id);
  const writable=owlAccessRole==='PLAYER'||owlAccessRole==='GM';
- return '<div class="place-hub-section"><h3>Shared Notes</h3><p class="muted">Notes written here are visible to the GM and all players in this room.</p>'+
- (notes.slice().reverse().map(n=>'<article class="entry"><div class="line"><strong>'+safe(n.author||'Player')+'</strong><span class="comment-date">'+safe(n.createdAt?new Date(n.createdAt).toLocaleString():'')+'</span></div><p>'+safe(n.body)+'</p></article>').join('')||'<p class="muted">No shared notes yet.</p>')+
- (writable?'<div class="place-form"><div class="field"><label for="sharedNoteAuthor">Name (optional)</label><input id="sharedNoteAuthor" maxlength="60" placeholder="Character or player name"></div><div class="field"><label for="sharedNoteBody">New shared note</label><textarea id="sharedNoteBody" maxlength="2000" placeholder="Write a note for your party and GM…"></textarea></div><button class="small primary" id="sharedNoteSend">Post Shared Note</button><p class="muted" id="sharedNoteResult" aria-live="polite"></p></div>':'')+'</div>';
+ const options=sharedAuthorOptions(c);
+ const roots=notes.filter(n=>!n.parentId);
+ const items=roots.map(n=>{
+  const replies=notes.filter(r=>r.parentId===n.id),expanded=sharedExpandedThreads.has(n.id);
+  return '<article class="place-comment"><div class="line"><strong class="comment-author">'+safe(n.author||'Note')+'</strong><span class="comment-date">'+safe(n.createdAt?new Date(n.createdAt).toLocaleString():'')+'</span></div>'+
+  '<p>'+noteHTML(n)+'</p>'+
+  '<div class="thread-actions">'+(replies.length?'<button class="small" data-shared-expand="'+safe(n.id)+'">'+(expanded?'Hide':'Show')+' '+replies.length+' '+(replies.length===1?'reply':'replies')+'</button>':'')+
+  (writable?'<span class="note-controls-shared"><button class="note-icon-button" title="Reply" data-shared-reply="'+safe(n.id)+'">+</button></span>':'')+'</div>'+
+  '<div class="thread-replies" '+(expanded?'':'hidden')+'>'+replies.map(r=>'<div class="thread-reply"><div class="line"><strong class="comment-author">'+safe(r.author||'Note')+'</strong><span class="comment-date">'+safe(r.createdAt?new Date(r.createdAt).toLocaleString():'')+'</span></div><p>'+noteHTML(r)+'</p></div>').join('')+'</div>'+
+  (writable?'<div class="thread-compose hidden" id="sharedReplyForm-'+safe(n.id)+'"><label class="note-source-row"><input type="checkbox" data-shared-source="'+safe(n.id)+'"> Add source</label><div class="hidden" id="sharedReplySource-'+safe(n.id)+'"><select data-shared-author="'+safe(n.id)+'">'+options+'</select><input class="hidden" id="sharedReplyCustom-'+safe(n.id)+'" placeholder="Enter a name" maxlength="60"></div><textarea id="sharedReplyBody-'+safe(n.id)+'" placeholder="Write a reply…" maxlength="2000"></textarea><div class="actions"><button class="primary small" data-shared-post-reply="'+safe(n.id)+'">Post Reply</button><button class="small" data-shared-cancel-reply="'+safe(n.id)+'">Cancel</button></div><p class="muted" id="sharedReplyResult-'+safe(n.id)+'"></p></div>':'')+
+  '</article>';
+ }).join('')||'<p class="muted">No shared notes yet.</p>';
+ return '<div class="place-hub-section"><h3>Shared Notes</h3><p class="muted">Visible to the GM and everyone in this Owlbear room.</p><div class="shared-notes-list">'+items+'</div>'+
+ (writable?'<button class="place-add-toggle" data-shared-new>+ Note</button><div class="place-note-form hidden" data-shared-form><label class="note-source-row"><input type="checkbox" data-shared-new-source> Add source</label><div class="hidden" data-shared-new-source-fields><select data-shared-new-author>'+options+'</select><input data-shared-new-custom class="hidden" placeholder="Enter a name" maxlength="60"></div><textarea data-shared-new-body maxlength="2000" placeholder="Add a shared note…"></textarea><button class="primary" data-shared-post>Post Note</button><p class="muted" data-shared-result aria-live="polite"></p></div>':'')+'</div>';
 }
 function wireSharedNotePanel(type,id,root){
- const button=root.querySelector('#sharedNoteSend');if(!button)return;
- button.onclick=async()=>{
-  const input=root.querySelector('#sharedNoteBody'),author=root.querySelector('#sharedNoteAuthor').value.trim()||'Player';
-  const feedback=root.querySelector('#sharedNoteResult'),body=input.value.trim();
-  if(!body)return feedback.textContent='Write a note first.';
-  if(typeof window.rpgPostSharedNote!=='function')return feedback.textContent='Shared notes require an Owlbear room.';
+ const group=root.querySelector('.shared-notes-list')?.parentElement;
+ if(!group)return;
+ const c=current();
+ const resolveSource=(checkbox,select,custom)=>{
+  if(!checkbox?.checked)return 'Player';
+  const val=select?.value||'';
+  if(val==='custom')return custom?.value.trim()||'Player';
+  if(val.startsWith('npc:'))return c.people.find(p=>p.id===val.slice(4))?.name||'Player';
+  return 'Player';
+ };
+ const publish=async(button,feedback,textArea,author,parentId)=>{
+  const body=textArea.value.trim();
+  if(!body){feedback.textContent='Write a note first.';return}
+  if(typeof window.rpgPostSharedNote!=='function'){feedback.textContent='Open the extension inside an Owlbear room to share notes.';return}
   button.disabled=true;feedback.textContent='Posting…';
-  try{await window.rpgPostSharedNote('comment',type,id,'',author,body);feedback.textContent='Shared note posted.';input.value=''}
-  catch(error){feedback.textContent='Could not post: '+error.message}
+  try{
+   await window.rpgPostSharedNote('comment',type,id,'',author,body,parentId,noteMentions(textArea));
+   textArea.value='';feedback.textContent='Posted to shared notes.';
+   if(parentId)sharedExpandedThreads.add(parentId);
+   // A successful server response triggers a refresh from Supabase.
+  }catch(error){feedback.textContent='Unable to post: '+error.message}
   finally{button.disabled=false}
  };
+ const newButton=group.querySelector('[data-shared-new]');
+ const form=group.querySelector('[data-shared-form]');
+ if(newButton)newButton.onclick=()=>form.classList.toggle('hidden');
+ const source=group.querySelector('[data-shared-new-source]');
+ const sourceFields=group.querySelector('[data-shared-new-source-fields]');
+ if(source)source.onchange=()=>sourceFields.classList.toggle('hidden',!source.checked);
+ const select=group.querySelector('[data-shared-new-author]'),custom=group.querySelector('[data-shared-new-custom]');
+ if(select)select.onchange=()=>custom.classList.toggle('hidden',select.value!=='custom');
+ const post=group.querySelector('[data-shared-post]');
+ if(post)post.onclick=()=>publish(post,group.querySelector('[data-shared-result]'),group.querySelector('[data-shared-new-body]'),resolveSource(source,select,custom),null);
+ group.querySelectorAll('[data-shared-expand]').forEach(b=>b.onclick=()=>{
+  const key=b.dataset.sharedExpand;
+  if(sharedExpandedThreads.has(key))sharedExpandedThreads.delete(key);else sharedExpandedThreads.add(key);
+  const row=b.closest('.place-comment'),replies=row.querySelector('.thread-replies');
+  replies.hidden=!sharedExpandedThreads.has(key);
+  b.textContent=(replies.hidden?'Show':'Hide')+b.textContent.replace(/^(Show|Hide)/,'');
+ });
+ group.querySelectorAll('[data-shared-reply]').forEach(b=>b.onclick=()=>group.querySelector('#sharedReplyForm-'+CSS.escape(b.dataset.sharedReply))?.classList.toggle('hidden'));
+ group.querySelectorAll('[data-shared-cancel-reply]').forEach(b=>b.onclick=()=>group.querySelector('#sharedReplyForm-'+CSS.escape(b.dataset.sharedCancelReply))?.classList.add('hidden'));
+ group.querySelectorAll('[data-shared-source]').forEach(input=>input.onchange=()=>group.querySelector('#sharedReplySource-'+CSS.escape(input.dataset.sharedSource))?.classList.toggle('hidden',!input.checked));
+ group.querySelectorAll('[data-shared-author]').forEach(sel=>sel.onchange=()=>group.querySelector('#sharedReplyCustom-'+CSS.escape(sel.dataset.sharedAuthor))?.classList.toggle('hidden',sel.value!=='custom'));
+ group.querySelectorAll('[data-shared-post-reply]').forEach(button=>button.onclick=()=>{
+  const key=button.dataset.sharedPostReply,source=group.querySelector('[data-shared-source="'+CSS.escape(key)+'"]');
+  const sel=group.querySelector('[data-shared-author="'+CSS.escape(key)+'"]'),custom=group.querySelector('#sharedReplyCustom-'+CSS.escape(key));
+  return publish(button,group.querySelector('#sharedReplyResult-'+CSS.escape(key)),group.querySelector('#sharedReplyBody-'+CSS.escape(key)),resolveSource(source,sel,custom),key);
+ });
+ attachMentions(group);
+ wireMentionLinks(group);
 }
 
 function renderPlaceHub(){
