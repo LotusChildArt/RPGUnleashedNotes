@@ -20,6 +20,16 @@ const gm=()=>state.role==='gm'&&owlAccessRole!=='PLAYER'&&owlAccessRole!=='UNKNO
 let pane='bestiary',editMasterId=null,editCombatId=null;
 function ensure(){
  state.bestiary ||= [];
+ if(gm()&&state.bestiaryStarterImportVersion!==1&&Array.isArray(window.RPGStarterBestiary)){
+  const existing=new Set(state.bestiary.map(x=>(x.name||'').trim().toLowerCase()+'|'+x.level+'|'+(x.role||'').toLowerCase()));
+  for(const record of window.RPGStarterBestiary){
+   const key=record.name.trim().toLowerCase()+'|'+record.level+'|'+record.role.toLowerCase();
+   if(!existing.has(key)&&!state.bestiary.some(x=>x.id===record.id)){
+    state.bestiary.push(structuredClone(record));existing.add(key);
+   }
+  }
+  state.bestiaryStarterImportVersion=1;save();
+ }
  const c=current();if(c)c.combatants ||= [];
  return c;
 }
