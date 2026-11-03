@@ -13,7 +13,8 @@ let credentials={};
 try{const stored=JSON.parse(localStorage.getItem(CREDS_KEY)||'{}');if(stored&&typeof stored==='object'&&!Array.isArray(stored))credentials=stored}catch{}
 const msg=s=>{if(el('cloudStatus'))el('cloudStatus').textContent=s};
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
-const same=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
+const cleanCampaign=c=>{if(!c||typeof c!=='object')return c;const copy={...c};delete copy.acceptedQuestIds;delete copy.partyQuestNotes;return copy};
+const same=(a,b)=>JSON.stringify(canonical(cleanCampaign(a)))===JSON.stringify(canonical(cleanCampaign(b)));
 const validKey=k=>typeof k==='string'&&/^[A-Za-z0-9_-]{43}$/.test(k);
 const saveCredentials=()=>localStorage.setItem(CREDS_KEY,JSON.stringify(credentials));
 const generateKey=()=>{
@@ -78,7 +79,7 @@ async function recognizeRoom(){
    const local=bridge.getCampaignById(id);
    if(local&&!same(local,remote.campaign)){blocked=true;msg('Local and cloud copies differ. Download a backup and select Restore Cloud Campaign or Publish / Link to choose which one to keep.')}
    else if(!local)bridge.installCloudCampaign(remote.campaign);
-   linkedCampaign=id;linkedVersion=remote.updatedAt;
+   linkedCampaign=id;linkedVersion=remote.updatedAt;lastBoardRevision='';
    status();
    if(!blocked)msg('Campaign connected. Changes sync to your room.');
    return;
@@ -96,9 +97,9 @@ async function publish(){
   bridge.exportBackup();
   const key=generateKey();
   try{
-   const created=await request('create',campaign.id,key,{roomId,payload:campaign});
+   const created=await request('create',campaign.id,key,{roomId,payload:cleanCampaign(campaign)});
    credentials[campaign.id]={key,name:campaign.name,createdAt:new Date().toISOString()};
-   linkedCampaign=campaign.id;linkedVersion=created.updatedAt;blocked=false;
+   linkedCampaign=campaign.id;linkedVersion=created.updatedAt;blocked=false;lastBoardRevision='';
    let savedLocally=true,downloaded=true;
    try{saveCredentials()}catch{savedLocally=false}
    try{downloadRecovery(campaign.id)}catch{downloaded=false}
@@ -112,7 +113,7 @@ async function publish(){
   if(!same(remote.campaign,campaign)){
    if(!confirm('Your browser and cloud copies differ. Replace the CLOUD version with your current LOCAL campaign? A JSON backup will be downloaded first.'))return;
    bridge.exportBackup();
-   const written=await request('write',campaign.id,known.key,{payload:campaign,expectedUpdatedAt:remote.updatedAt});
+   const written=await request('write',campaign.id,known.key,{payload:cleanCampaign(campaign),expectedUpdatedAt:remote.updatedAt});
    linkedVersion=written.updatedAt;
   }else linkedVersion=remote.updatedAt;
   if(remote.roomId!==roomId){
@@ -120,7 +121,7 @@ async function publish(){
    const linked=await request('link',campaign.id,known.key,{roomId});
    linkedVersion=linked.updatedAt;
   }
-  linkedCampaign=campaign.id;blocked=false;status();msg('Campaign linked. Future changes sync automatically.');
+  linkedCampaign=campaign.id;blocked=false;lastBoardRevision='';status();await refreshBoardActivity();msg('Campaign linked. Future changes sync automatically.');
  }catch(error){msg('Could not link campaign: '+error.message)}
 }
 async function push(){
@@ -130,7 +131,7 @@ async function push(){
  if(!c||!entry)return;
  saving=true;
  try{
-  const result=await request('write',linkedCampaign,entry.key,{payload:c,expectedUpdatedAt:linkedVersion});
+  const result=await request('write',linkedCampaign,entry.key,{payload:cleanCampaign(c),expectedUpdatedAt:linkedVersion});
   linkedVersion=result.updatedAt;msg('Changes saved. Players will see the published information shortly.');
  }catch(error){blocked=true;msg('Sync paused: '+error.message+' Local campaign was not deleted.')}
  finally{saving=false;}
@@ -199,6 +200,31 @@ async function rotate(){
   msg(safe?'Recovery key replaced; old key revoked. Keep the new recovery file safely.':'NEW KEY IS ACTIVE, but automatic saving or download failed. Use Download Recovery File NOW before leaving this page.');
  }catch(error){msg('Key rotation failed; the previous key is unchanged: '+error.message)}
 }
+
+let lastBoardRevision='';
+async function refreshBoardActivity(){
+ if(!roomId||owlRole!=='GM'||!linkedCampaign)return;
+ const {data,error}=await db.rpc('get_player_snapshot',{requested_room_id:roomId});
+ if(error||!data||data.id!==linkedCampaign)return;
+ const revision=JSON.stringify([data.acceptedQuestIds||[],data.partyQuestNotes||[]]);
+ if(revision!==lastBoardRevision){lastBoardRevision=revision;bridge.applyBoardUpdates(data)}
+}
+window.rpgAcceptBoardQuest=async questId=>{
+ if(owlRole!=='PLAYER'||!roomId)throw Error('Only players in an Owlbear room can accept a party quest.');
+ const {data,error}=await db.rpc('accept_board_quest',{requested_room_id:roomId,requested_quest_id:questId});
+ if(error)throw Error(error.message);
+ if(data!==true)throw Error('This posting is no longer available.');
+ await refreshPlayer();
+};
+window.rpgAddPartyQuestNote=async (questId,author,body)=>{
+ if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open inside an Owlbear room to post party notes.');
+ const {data,error}=await db.rpc('add_quest_party_note',{requested_room_id:roomId,requested_quest_id:questId,note_author:author,note_body:body});
+ if(error)throw Error(error.message);
+ if(data!==true)throw Error('The quest must be accepted, and the note must be between 1 and 1500 characters.');
+ if(owlRole==='PLAYER')await refreshPlayer();
+ else await refreshBoardActivity();
+};
+
 async function refreshPlayer(){
  if(owlRole!=='PLAYER'||!roomId)return;
  const {data,error}=await db.rpc('get_player_snapshot',{requested_room_id:roomId});
@@ -216,7 +242,7 @@ async function roleChanged(role){
  bridge.applyOwlRole(next);status();
  if(next==='PLAYER'){
   await refreshPlayer();pollTimer=setInterval(refreshPlayer,6000);
- }else await recognizeRoom();
+ }else {await recognizeRoom();await refreshBoardActivity();pollTimer=setInterval(refreshBoardActivity,6000)}
 }
 function wire(){
  el('cloudPublish')?.addEventListener('click',publish);
