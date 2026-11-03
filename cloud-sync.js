@@ -23,6 +23,68 @@ async function restoreOwlAppearance(){
 
 const el=id=>document.getElementById(id);
 let roomId=null,owlRole='UNKNOWN',linkedCampaign=null,linkedVersion=null,saveTimer=null,saving=false,saveAgain=false,blocked=false,pollTimer=null,lastPlayerSnapshot='';
+
+const ACTIVITY_CHANNEL='com.lotuschild.rpgunleashednotes/activity-v1';
+let syncReference=null;
+const label=(value,fallback)=>String(value||fallback).trim().slice(0,120);
+function diffPublishedActivity(previous,next){
+ if(!previous||!next||previous.id!==next.id)return [];
+ const events=[],emit=(kind,message)=>events.push({kind,message});
+ const priorPlaces=new Map((previous.places||[]).map(p=>[p.id,p]));
+ const priorQuests=new Map((previous.quests||[]).map(q=>[q.id,q]));
+ const nextQuests=new Map((next.quests||[]).map(q=>[q.id,q]));
+ for(const place of next.places||[]){
+  if(place.discovered===true && priorPlaces.get(place.id)?.discovered!==true)
+   emit('place-discovered','New Place Discovered: '+label(place.name,'Unknown location'));
+  const earlier=new Set((priorPlaces.get(place.id)?.questBoard||[]).filter(x=>!x.closed).map(x=>x.questId));
+  for(const posting of place.questBoard||[]){
+   if(posting.closed||earlier.has(posting.questId))continue;
+   const quest=nextQuests.get(posting.questId);
+   if(quest)emit('quest-posted','New Quest Available: '+label(quest.title,'Untitled quest'));
+  }
+ }
+ for(const quest of next.quests||[]){
+  const old=priorQuests.get(quest.id);
+  if(old?.status!=='Completed'&&quest.status==='Completed')
+   emit('objective-completed','Quest Completed: '+label(quest.title,'Untitled quest'));
+  const priorObjectives=new Map((old?.objectives||[]).map(o=>[o.id,o]));
+  for(const objective of quest.objectives||[]){
+   const prev=priorObjectives.get(objective.id);
+   const visible=objective.revealed===true;
+   const name=label(objective.title||objective.text,'Untitled objective');
+   if(visible&&prev?.revealed!==true)emit('objective-revealed','New Objective Revealed: '+name);
+   if(visible&&objective.progress==='Current'&&prev?.progress!=='Current')emit('objective-current','New Objective Now Active: '+name);
+   if(visible&&objective.progress==='Completed'&&prev?.progress!=='Completed')emit('objective-completed','Objective Completed: '+name);
+  }
+ }
+ const oldEntries=new Set((previous.entries||[]).map(n=>n.id));
+ const additions=(next.entries||[]).filter(n=>n.id&&!oldEntries.has(n.id));
+ if(additions.length)emit('session-journal',additions.length===1?'Session Journal Updated: '+label(additions[0].title,'New entry'):'Session Journal Updated: '+additions.length+' new entries');
+ return events;
+}
+async function broadcastActivities(events){
+ if(!roomId||!OBR.isReady||!events?.length)return;
+ const unique=[...new Map(events.map(e=>[e.kind+'|'+e.message,e])).values()];
+ try{
+  await OBR.broadcast.sendMessage(ACTIVITY_CHANNEL,{
+   version:1,roomId,actorId:OBR.player.id,eventId:crypto.randomUUID(),
+   events:unique.slice(0,25)
+  },{destination:'ALL'});
+ }catch(error){console.warn('RPG Unleashed activity announcement failed',error)}
+}
+function nameForTarget(kind,id){
+ const campaign=bridge.getActiveCampaign();
+ const array=kind==='person'?campaign?.people:kind==='place'?campaign?.places:campaign?.quests;
+ const match=array?.find(item=>item.id===id);
+ return label(kind==='quest'?match?.title:match?.name,kind==='person'?'Person':kind==='place'?'Location':'Quest');
+}
+function commentActivity(kind,id,parentId=false){
+ const name=nameForTarget(kind,id);
+ if(parentId)return {kind:'note-reply',message:'New Reply: '+name};
+ return {kind:kind==='person'?'people-note':kind==='place'?'place-note':'quest-note',
+  message:(kind==='person'?'People':kind==='place'?'Place':'Quest')+' Note Updated: '+name};
+}
+
 let credentials={};
 try{const stored=JSON.parse(localStorage.getItem(CREDS_KEY)||'{}');if(stored&&typeof stored==='object'&&!Array.isArray(stored))credentials=stored}catch{}
 const msg=s=>{if(el('cloudStatus'))el('cloudStatus').textContent=s};
@@ -93,7 +155,7 @@ async function recognizeRoom(){
    const local=bridge.getCampaignById(id);
    if(local&&!same(local,remote.campaign)){blocked=true;msg('Local and cloud copies differ. Download a backup and select Restore Cloud Campaign or Publish / Link to choose which one to keep.')}
    else if(!local)bridge.installCloudCampaign(remote.campaign);
-   linkedCampaign=id;linkedVersion=remote.updatedAt;lastBoardRevision='';
+   linkedCampaign=id;linkedVersion=remote.updatedAt;syncReference=cleanCampaign(remote.campaign);lastBoardRevision='';
    const needsBoardMigration=(remote.campaign.places||[]).some(p=>p.type!=='Quest Board'&&Array.isArray(p.questBoard)&&p.questBoard.length);
    if(needsBoardMigration&&!blocked)scheduleSave();
    status();
@@ -115,7 +177,7 @@ async function publish(){
   try{
    const created=await request('create',campaign.id,key,{roomId,payload:cleanCampaign(campaign)});
    credentials[campaign.id]={key,name:campaign.name,createdAt:new Date().toISOString()};
-   linkedCampaign=campaign.id;linkedVersion=created.updatedAt;blocked=false;lastBoardRevision='';
+   linkedCampaign=campaign.id;linkedVersion=created.updatedAt;syncReference=cleanCampaign(campaign);blocked=false;lastBoardRevision='';
    let savedLocally=true,downloaded=true;
    try{saveCredentials()}catch{savedLocally=false}
    try{downloadRecovery(campaign.id)}catch{downloaded=false}
@@ -126,6 +188,7 @@ async function publish(){
  }
  try{
   const remote=await request('read',campaign.id,known.key);
+  const priorPublished=cleanCampaign(remote.campaign);
   const different=!same(remote.campaign,campaign);
   const legacyBoard=(remote.campaign.places||[]).some(p=>p.type!=='Quest Board'&&Array.isArray(p.questBoard)&&p.questBoard.length);
   if(different||legacyBoard){
@@ -141,7 +204,7 @@ async function publish(){
    const linked=await request('link',campaign.id,known.key,{roomId});
    linkedVersion=linked.updatedAt;
   }
-  linkedCampaign=campaign.id;blocked=false;lastBoardRevision='';status();await refreshBoardActivity();msg('Campaign linked. Future changes sync automatically.');
+  linkedCampaign=campaign.id;blocked=false;syncReference=cleanCampaign(campaign);lastBoardRevision='';status();await refreshBoardActivity();if(different&&remote.roomId===roomId)await broadcastActivities(diffPublishedActivity(priorPublished,syncReference));msg('Campaign linked. Future changes sync automatically.');
  }catch(error){msg('Could not link campaign: '+error.message)}
 }
 async function push(){
@@ -151,8 +214,11 @@ async function push(){
  if(!c||!entry)return;
  saving=true;
  try{
-  const result=await request('write',linkedCampaign,entry.key,{payload:cleanCampaign(c),expectedUpdatedAt:linkedVersion});
-  linkedVersion=result.updatedAt;msg('Changes saved. Players will see the published information shortly.');
+  const nextPayload=cleanCampaign(c);
+  const result=await request('write',linkedCampaign,entry.key,{payload:nextPayload,expectedUpdatedAt:linkedVersion});
+  const events=diffPublishedActivity(syncReference,nextPayload);
+  linkedVersion=result.updatedAt;syncReference=nextPayload;msg('Changes saved. Players will see the published information shortly.');
+  await broadcastActivities(events);
  }catch(error){blocked=true;msg('Sync paused: '+error.message+' Local campaign was not deleted.')}
  finally{saving=false;}
  if(saveAgain){saveAgain=false;if(!blocked)scheduleSave()}
@@ -174,6 +240,7 @@ async function restoreRecovery(){
   }
   blocked=true; // prevent saving until fully imported
   bridge.installCloudCampaign(data.campaign);
+  syncReference=cleanCampaign(data.campaign);
   if(data.roomId===roomId){linkedCampaign=credential.id;linkedVersion=data.updatedAt;}
   else if(linkedCampaign===credential.id){linkedCampaign=null;linkedVersion=null;}
   blocked=false;status();msg('Cloud campaign restored. A backup of the previous local data was downloaded if needed.');
@@ -236,6 +303,7 @@ window.rpgDeleteSharedNote=async noteId=>{
  const {data,error}=await db.rpc('delete_room_shared_note',{requested_room_id:roomId,requested_note_id:noteId});
  if(error)throw Error(error.message);
  if(data!==true)throw Error('Note could not be deleted or was already removed.');
+ await broadcastActivities([{kind:'note-deleted',message:'Shared Notes Updated'}]);
  if(owlRole==='PLAYER')await refreshPlayer();else await refreshBoardActivity(true);
 };
 window.rpgPostSharedNote=async (kind,type,targetId,title,author,body,parentId=null,mentions=[])=>{
@@ -255,6 +323,7 @@ window.rpgPostSharedNote=async (kind,type,targetId,title,author,body,parentId=nu
  });
  if(error)throw Error(error.message);
  if(data!==true)throw Error('This note could not be posted. Verify that the campaign is published, then try again.');
+ await broadcastActivities([kind==='journal'?{kind:'session-journal',message:'Session Journal Updated: '+label(title,'New entry')}:commentActivity(type,targetId,!!parentId)]);
  if(owlRole==='PLAYER')await refreshPlayer();else await refreshBoardActivity();
 };
 
@@ -263,6 +332,7 @@ window.rpgAcceptBoardQuest=async questId=>{
  const {data,error}=await db.rpc('accept_board_quest',{requested_room_id:roomId,requested_quest_id:questId});
  if(error)throw Error(error.message);
  if(data!==true)throw Error('This posting is no longer available.');
+ await broadcastActivities([{kind:'quest-accepted',message:'Quest Accepted: '+nameForTarget('quest',questId)}]);
  await refreshPlayer();
 };
 
@@ -279,7 +349,7 @@ async function roleChanged(role){
  if(owlRole===next)return;
  owlRole=next;
  clearTimeout(saveTimer);if(pollTimer)clearInterval(pollTimer);
- pollTimer=null;linkedCampaign=null;linkedVersion=null;blocked=false;lastPlayerSnapshot='';
+ pollTimer=null;linkedCampaign=null;linkedVersion=null;syncReference=null;blocked=false;lastPlayerSnapshot='';
  bridge.applyOwlRole(next);status();
  if(next==='PLAYER'){
   await refreshPlayer();pollTimer=setInterval(refreshPlayer,6000);
