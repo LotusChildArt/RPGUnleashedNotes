@@ -4,7 +4,7 @@ const TOKEN_KEY='com.rpgunleashed.notes/npcTokenV1';
 const HUD_KEY='com.rpgunleashed.notes/npcHudV1';
 const ASSETS='https://rpgunleashedchara.onrender.com/assets/';
 const DEFAULT_TOKEN='https://rpgunleashednotes.onrender.com/icons/icon-192.png';
-let roomId=null,ready=false;
+let roomId=null,ready=false,spawnSequence=0;
 const asNumber=(v,defaultValue=0)=>Number.isFinite(Number(v))?Number(v):defaultValue;
 function announce(){window.dispatchEvent(new CustomEvent('rpg-npc-owlbear-state',{detail:{ready,roomId}}))}
 const metadata=(c,kind)=>({[HUD_KEY]:{combatantId:c.id,roomId,kind}});
@@ -14,6 +14,7 @@ function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId
   .position(position).layer(tokenId?'ATTACHMENT':'CHARACTER')
   .metadata(tokenId?metadata(combatant,kind):{[TOKEN_KEY]:{combatantId:combatant.id,roomId}})
   .locked(!!tokenId);
+ if(!tokenId)item.name(combatant.name);
  if(tokenId)item.attachedTo(tokenId).disableHit(true);
  return item.build();
 }
@@ -64,7 +65,7 @@ async function updateHUD(c){
   items.push(imageItem({url:v.url,pixelsWidth:72,pixelsHeight:63,dpi,worldWidth:iconWidth,position:pos,tokenId:token.id,combatant:c,kind:v.kind+'-icon'}));
   items.push(numberItem({combatant:c,tokenId:token.id,kind:v.kind+'-number',value:v.value,position:pos,width:iconWidth}));
  }
- const conditions=String(c.conditions||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
+ const conditions=String(c.conditions||'').split(',').map(x=>x.trim().toLowerCase().replace(/\s+/g,'-')).filter(Boolean);
  const valid=new Set(['fear','wounded','arrowed','bleeding','broken-bone','burning','charmed','poisoned','drunk','confused','frozen','unconscious','taunted','stunned']);
  conditions.filter(x=>valid.has(x)).slice(0,8).forEach((x,i)=>{
   const overlayWidth=Math.max(30,bounds.width*.45);
@@ -75,7 +76,8 @@ async function updateHUD(c){
 }
 async function spawn(c){
  if(!await connection())throw Error('Open Notes from an Owlbear room with an active scene to spawn tokens.');
- const position=await OBR.viewport.getPosition(),dpi=await OBR.scene.grid.getDpi();
+ const center=await OBR.viewport.getPosition(),dpi=await OBR.scene.grid.getDpi();
+ const index=spawnSequence++;const position={x:center.x+(index%6)*dpi*1.4,y:center.y+Math.floor(index/6)*dpi*1.4};
  const imageUrl=String(c.tokenImage||DEFAULT_TOKEN).trim();
  if(!/^https:\/\//i.test(imageUrl))throw Error('Token artwork must be an HTTPS image URL.');
  const token=imageItem({url:imageUrl,pixelsWidth:512,pixelsHeight:512,dpi,worldWidth:dpi,position,combatant:c,kind:'token'});
