@@ -53,6 +53,7 @@ body.owlbear-player .mode-switch,body.owlbear-player #cloudPanel,body.owlbear-pl
 #settings #cloudBackupToggle{margin-top:14px}
 #time .tabs{margin-top:0;justify-content:flex-end;gap:4px}#time .tabs button{flex:0 0 auto!important;width:auto;padding:8px 15px;font-size:13px}#time .time-expanded{padding:12px 4px 4px}#time .time-expanded .line{margin:12px 0}#time .time-expanded .line h3{margin:0;font-size:16px}#time .time-day{display:grid;place-items:center;border:1px solid var(--edge);min-height:34px}#time .time-calendar .weekday{overflow-wrap:anywhere}#time .place-form label input[type=checkbox]{vertical-align:middle;margin-right:5px}
 #timeClockPane.hidden,#timeCalendarPane.hidden,#time .panel.hidden{display:none!important}
+#gmTools .tabs{justify-content:flex-end;margin-top:0}#gmTools .tabs button{padding:8px 15px;font-size:13px}#gmTools .npc-entry{margin:12px 0;padding:12px}#gmTools .npc-stat-strip{display:flex;gap:8px;flex-wrap:wrap;margin:7px 0}#gmTools .npc-stat-strip span{font-size:12px;background:var(--raised);padding:5px 8px;border-radius:10px}#gmTools .npc-actions{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}#gmTools .npc-actions button{font-size:12px;padding:8px 10px}#gmTools .npc-entry h3{margin:0;font-size:16px}#gmTools .npc-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#gmTools .npc-editor-grid .field{min-width:0}#gmTools .hidden{display:none!important}@media(max-width:500px){#gmTools .npc-editor-grid{grid-template-columns:1fr}}
 .subtabs{overflow-x:auto;scrollbar-width:thin}.subtabs button{flex:1 0 auto;padding-inline:10px}
 body.player-view .gm-only-tab,body.owlbear-player .gm-only-tab{display:none!important}
 .time-clock{font-size:clamp(28px,6vw,44px);font-weight:700;font-variant-numeric:tabular-nums;margin:12px 0}
@@ -97,7 +98,14 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 <div class="field"><label for="calendarDayNames">Day names (comma-separated, optional)</label><input id="calendarDayNames" placeholder="Firstday, Secondday, ..."></div>
 <div class="field"><label for="calendarWeekOffset">Starting day offset (0 = first grouping day)</label><input id="calendarWeekOffset" type="number" min="0" value="1"></div>
 </div><div class="actions"><button class="primary" id="calendarFormSave">Save Calendar</button><button id="calendarCancel">Cancel</button></div></div></div></section></section>
-<section id="gmTools" class="hidden camp-pane"><div class="panel"><h2>GM Tools</h2><p class="muted">GM-only tools will appear here as we add them.</p></div></section>
+<section id="gmTools" class="hidden camp-pane"><nav class="tabs" id="gmToolsTabs"><button class="tab active" id="gmToolsBestiary">Bestiary</button><button class="tab" id="gmToolsCombat">Combatants</button></nav>
+<section id="gmBestiaryPane">
+<div class="panel"><div class="group-head"><h2>Bestiary</h2><button class="small" id="npcAddBestiary">+ Creature / NPC</button></div><p class="muted">Reusable stat blocks across your campaigns. Spawning creates independently editable copies.</p><div class="field"><label for="npcBestiarySearch">Search Bestiary</label><input id="npcBestiarySearch" placeholder="Search by name, role, race or notes"></div><div id="npcBestiaryList"></div></div>
+<div class="panel hidden" id="npcBestiaryEditor"><div class="group-head"><h2 id="npcBestiaryEditTitle">Bestiary Entry</h2><button class="small" id="npcBestiaryCancel">← Bestiary</button></div><div id="npcBestiaryFields" class="place-form"></div><div class="actions"><button class="primary" id="npcBestiarySave">Save Bestiary Entry</button><button id="npcBestiaryDiscard">Cancel</button></div></div>
+</section>
+<section id="gmCombatPane" class="hidden"><div class="panel"><div class="group-head"><h2>Active Combatants</h2><button class="small" id="npcGoBestiary">+ Spawn from Bestiary</button></div><p class="muted">Each spawned copy has independent HP, DR, conditions and other stats. Owlbear tokens are GM-controlled.</p><div id="npcCombatantList"></div></div>
+<div class="panel hidden" id="npcCombatEditor"><div class="group-head"><h2>Edit Combatant</h2><button class="small" id="npcCombatCancel">← Combatants</button></div><div id="npcCombatFields" class="place-form"></div><div class="actions"><button class="primary" id="npcCombatSave">Save Combatant</button><button id="npcCombatDiscard">Cancel</button></div><p id="npcCombatFeedback" class="result" aria-live="polite"></p></div></div></section>
+</section>
 <section id="settings" class="hidden camp-pane"><div class="panel"><h2>Options</h2><div class="main-menu-actions"><button id="campaignGoHome" class="main-menu-button">Main Menu</button><button id="campaignGoList" class="main-menu-button">Campaigns</button></div><button id="editCampaignDetails" class="main-menu-button" style="margin-top:12px">Edit Campaign Details</button><div id="campaignDetailsForm" class="place-form hidden" style="margin-top:12px"><div class="field"><label for="editCampaignName">Campaign name</label><input id="editCampaignName"></div><div class="field"><label for="editCampaignGM">GM name</label><input id="editCampaignGM"></div><div class="actions"><button id="saveCampaignDetails" class="primary">Save Changes</button><button id="cancelCampaignDetails">Cancel</button></div></div><div class="field" style="margin-top:18px"><label for="campaignThemeToggle">Theme</label><select id="campaignThemeToggle"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select></div>
 <div id="cloudPanel" class="place-hub-section">
 <div class="actions"><button class="primary" id="cloudPublish">Publish / Link This Campaign</button></div>
@@ -131,7 +139,7 @@ let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{
 function persistPreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){console.warn('Unable to save appearance preferences',e)}window.rpgSaveOwlPreferences?.(state.theme)}
 const embedded=window.self!==window.top;let owlAccessRole=embedded?'UNKNOWN':'LOCAL';
 const state={theme:(preferences.theme==='dark'||preferences.theme==='light')?preferences.theme:((stored?.theme==='dark')?'dark':'light'),view:['auto','desktop','mobile'].includes(preferences.view)?preferences.view:(stored?.view||'auto'),role:embedded?'player':(stored?.role==='player'?'player':'gm'),campaigns:embedded?[]:(Array.isArray(stored?.campaigns)?stored.campaigns:[]),activeCampaignId:embedded?null:(stored?.activeCampaignId||null)};
-state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= []});
+state.bestiary=Array.isArray(stored?.bestiary)?stored.bestiary:[];state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= [];c.combatants ||= []});
 const expandedPlacePeople=new Set();
 let editingQuest=null, selectedQuestId=null, selectedPlaceId=null, selectedPersonId=null, lastParentChoice=null;
 function save(){if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN')return;try{const snapshot={...state,role:owlAccessRole==='GM'?'gm':state.role,version:3};localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){alert('Browser storage unavailable. Changes may not persist.')}if(owlAccessRole==='GM'&&state.role==='gm')window.rpgScheduleCloudSave?.()}
@@ -199,7 +207,7 @@ $('editCampaignDetails').onclick=()=>{const c=current();if(!c)return;$('editCamp
  $('toggleAddPerson').setAttribute('aria-expanded','false');
  setPeopleSubtab('people');
 }
-function tab(name){if(name==='gmTools'&&(state.role!=='gm'||owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN'))name='quests';if(name==='time')window.rpgTimeRender?.();if(name==='places'&&!selectedPlaceId)showPlaceIndex();document.querySelectorAll('[data-camp-tab]').forEach(b=>b.classList.toggle('active',b.dataset.campTab===name));document.querySelectorAll('.camp-pane').forEach(x=>x.classList.toggle('hidden',x.id!==name))}
+function tab(name){if(name==='gmTools'&&(state.role!=='gm'||owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN'))name='quests';if(name==='time')window.rpgTimeRender?.();if(name==='gmTools')window.rpgBestiaryRender?.();if(name==='places'&&!selectedPlaceId)showPlaceIndex();document.querySelectorAll('[data-camp-tab]').forEach(b=>b.classList.toggle('active',b.dataset.campTab===name));document.querySelectorAll('.camp-pane').forEach(x=>x.classList.toggle('hidden',x.id!==name))}
 document.querySelectorAll('[data-camp-tab]').forEach(b=>b.onclick=()=>{
  if(b.dataset.campTab==='people')resetPeopleList();
  if(b.dataset.campTab==='quests')showQuestIndex();
@@ -732,7 +740,7 @@ function renderJournal(){
  wireMentionLinks($('entries'));
 }
 
-function render(){theme();renderCampaigns();renderPlacesPeople();renderQuests();renderActivity();renderJournal();window.rpgTimeRender?.();attachMentions()}
+function render(){theme();renderCampaigns();renderPlacesPeople();renderQuests();renderActivity();renderJournal();window.rpgTimeRender?.();window.rpgBestiaryRender?.();attachMentions()}
 
 window.RPGNotesBridge={
  applyOwlAppearance:appearance=>{if(appearance!=='dark'&&appearance!=='light')return;state.theme=appearance;try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){}theme()},
@@ -813,4 +821,4 @@ window.RPGNotesBridge={
 
 state.activeCampaignId=null;$('campaignPicker').classList.remove('hidden');$('campaignWorkspace').classList.add('hidden');
 render();
-</script><script src="timekeeping.js"></script><script type="module" src="cloud-sync.js"></script></body></html>
+</script><script src="timekeeping.js"></script><script src="bestiary.js"></script><script type="module" src="npc-battlefield.js"></script><script type="module" src="cloud-sync.js"></script></body></html>
