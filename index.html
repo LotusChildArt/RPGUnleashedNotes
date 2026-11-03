@@ -43,6 +43,7 @@ body.player-view #relationshipsSection #reviewRelationships,body.player-view #re
 .field-row.hidden,#singlePersonExtras.hidden,#personRoleField.hidden{display:none!important}.groups-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.group-member-line{display:flex;align-items:center;gap:8px}.group-member-line>.place-hub-link{flex:1;min-width:0}.group-eye{min-width:36px}.group-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}.group-head>h2,.group-head>h3{grid-column:1;margin:0}.group-head>button{grid-column:2;justify-self:center}.group-head h3{margin:0}.group-form{margin-top:10px}
 #personCreatePanel:has(> #addPersonFields.hidden),#addPlacePanel:has(> #addPlaceFields.hidden),#questEditor:has(> #questFields.hidden){display:none}
 
+body.player-view #cloudPanel,body.player-view #newCampaign,body.player-view #campaignPickerHome,body.player-view #editCampaignDetails,body.player-view #deleteQuest,body.player-view #notes #add,body.player-view #notes [data-delete-entry],body.player-view #notes .primary{display:none!important}
 </style></head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
@@ -57,18 +58,38 @@ body.player-view #relationshipsSection #reviewRelationships,body.player-view #re
 </section>
 <section id="places" class="hidden camp-pane"><div class="panel" id="placeIndex"><div class="group-head"><h2>Places</h2><button id="toggleAddPlace" class="small" aria-expanded="false" aria-controls="addPlaceFields">+ Place</button></div><div id="placesTree"></div></div><div class="panel hidden" id="placeHub"></div><div class="panel" id="addPlacePanel"><div class="place-form hidden" id="addPlaceFields"><div class="group-head"><h2>Create Place</h2><button id="cancelPlaceCreate" class="small">← Places</button></div><div class="field"><label for="placeName">Location name</label><input id="placeName" placeholder="e.g. Glenridge"></div><div class="field-row"><div class="field"><label for="placeType">Type</label><select id="placeType"><option>World</option><option>Country</option><option>Region</option><option>Capital</option><option>City</option><option selected>Town</option><option>Village</option><option>Shop</option><option>POI</option><option>Other</option></select></div><div class="field hidden" id="customPlaceWrap"><label for="customPlaceType">Other type (optional)</label><input id="customPlaceType" placeholder="Leave blank for Other"></div></div><div class="field"><label for="placeParent">Located within (optional)</label><select id="placeParent"><option value="">None — top level</option></select></div><div class="field"><label for="placeDescription">Description (optional)</label><textarea id="placeDescription"></textarea></div><button id="savePlace" class="primary">Add Location</button></div></div></section>
 <section id="people" class="hidden camp-pane"><nav class="tabs" id="peopleSubtabs"><button id="peopleSubtabPeople" class="tab active">People</button><button id="peopleSubtabGroups" class="tab">Groups</button></nav><div class="panel" id="peopleMainPanel"><div class="group-head"><h2 id="peopleListHeading">People</h2><button id="toggleAddPerson" class="small" aria-expanded="false" aria-controls="addPersonFields">+ Person</button></div><div id="peopleList"></div></div><div class="panel" id="personCreatePanel"><div id="addPersonFields" class="place-form hidden"><div class="group-head"><h2>Create Person</h2><button id="cancelPersonCreate" class="small">← People</button></div><div class="line"><label><input type="checkbox" id="personBulkMode"> Add Multiple</label><button class="small" id="bulkPersonHelp" title="Bulk creation help" aria-label="Bulk creation help">?</button></div><div id="bulkPersonFields" class="field hidden"><label for="personBulkNames">People (comma or newline separated)</label><textarea id="personBulkNames" rows="4" placeholder="James (G-M, A-Adult, R-Human, RO-Blacksmith), Elizabeth (G-F, RO-Healer)"></textarea><p class="muted">Use G-, A-, R-, or RO- inside each person’s parentheses for optional details.</p></div><div id="singlePersonName" class="field"><label for="personName">Name</label><input id="personName" placeholder="e.g. Village Elder"></div><div class="field-row"><div class="field" id="personRoleField"><label for="personRole">Role / occupation</label><input id="personRole" placeholder="e.g. Blacksmith"></div><div class="field"><label for="personPlace">Current location (optional)</label><select id="personPlace"><option value="">None</option></select></div></div><div id="singlePersonExtras" class="field-row"><div class="field"><label for="personGender">Gender</label><input id="personGender" placeholder="Male"></div><div class="field"><label for="personAge">Age group</label><input id="personAge" placeholder="Adult"></div><div class="field"><label for="personRace">Race</label><input id="personRace" placeholder="Human"></div></div><div id="singlePersonNotes" class="field"><label for="personDetails">Notes (optional)</label><textarea id="personDetails"></textarea></div><button id="savePerson" class="primary">Add Person</button></div></div><div id="groupsPanel" class="panel"><div class="group-head"><h3>Groups</h3><button id="toggleGroupForm" class="small">+ Group</button></div><div id="groupsList"></div></div><div id="groupCreatePanel" class="panel hidden"><div id="groupCreateForm" class="place-form group-form"><div class="group-head"><h2>Create Group</h2><button id="backGroupCreate" class="small">← Groups</button></div><label>Group name</label><input id="newGroupName" placeholder="e.g. Smiths’ Guild"><label>Type</label><select id="newGroupType"><option>Family</option><option>Guild</option><option>Faction</option><option>Organization</option><option>Party</option><option>Military</option><option>Religious</option><option>Criminal</option><option>Other</option></select><label>Description</label><textarea id="newGroupDescription"></textarea><div class="actions"><button class="primary" id="saveGroup">Create Group</button><button id="cancelGroup">Cancel</button></div></div></div><div id="groupDetail" class="panel hidden"></div><div id="personDetail" class="panel hidden"></div></section>
-<section id="settings" class="hidden camp-pane"><div class="panel"><h2>Options</h2><div class="main-menu-actions"><button id="campaignGoHome" class="main-menu-button">Main Menu</button><button id="campaignGoList" class="main-menu-button">Campaigns</button></div><button id="editCampaignDetails" class="main-menu-button" style="margin-top:12px">Edit Campaign Details</button><div id="campaignDetailsForm" class="place-form hidden" style="margin-top:12px"><div class="field"><label for="editCampaignName">Campaign name</label><input id="editCampaignName"></div><div class="field"><label for="editCampaignGM">GM name</label><input id="editCampaignGM"></div><div class="actions"><button id="saveCampaignDetails" class="primary">Save Changes</button><button id="cancelCampaignDetails">Cancel</button></div></div><div class="field" style="margin-top:18px"><label for="campaignThemeToggle">Theme</label><select id="campaignThemeToggle"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select></div></div></section>
+<section id="settings" class="hidden camp-pane"><div class="panel"><h2>Options</h2><div class="main-menu-actions"><button id="campaignGoHome" class="main-menu-button">Main Menu</button><button id="campaignGoList" class="main-menu-button">Campaigns</button></div><button id="editCampaignDetails" class="main-menu-button" style="margin-top:12px">Edit Campaign Details</button><div id="campaignDetailsForm" class="place-form hidden" style="margin-top:12px"><div class="field"><label for="editCampaignName">Campaign name</label><input id="editCampaignName"></div><div class="field"><label for="editCampaignGM">GM name</label><input id="editCampaignGM"></div><div class="actions"><button id="saveCampaignDetails" class="primary">Save Changes</button><button id="cancelCampaignDetails">Cancel</button></div></div><div class="field" style="margin-top:18px"><label for="campaignThemeToggle">Theme</label><select id="campaignThemeToggle"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select></div>
+<div id="cloudPanel" class="place-hub-section">
+<h3>Owlbear · Shared Campaign</h3>
+<p class="muted">GM access is controlled by Owlbear. Supabase sign-in separately protects private campaign data. Only a sanitized player copy is shared.</p>
+<p id="cloudRoom" class="muted">Checking Owlbear room…</p>
+<div id="cloudAuthForm" class="place-form">
+<div class="field"><label for="cloudEmail">GM account email</label><input id="cloudEmail" type="email" autocomplete="email" placeholder="Email"></div>
+<div class="field"><label for="cloudPassword">Password</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Password"></div>
+<div class="actions"><button class="primary" id="cloudSignIn">Sign In</button><button id="cloudSignUp">Create Account</button></div>
+<p class="muted">On first registration, Supabase may require you to confirm your email. Do not use your Owlbear password here unless you choose to.</p>
+</div>
+<div id="cloudSignedIn" class="hidden">
+<p class="muted">Signed in as <strong id="cloudAccount"></strong></p>
+<p id="cloudLinked" class="muted">No published campaign linked.</p>
+<div class="actions"><button class="primary" id="cloudPublish">Publish Current Campaign to Room</button><button id="cloudLoad">Load Cloud Campaigns</button><button id="cloudSignOut">Sign Out</button></div>
+</div>
+<div class="actions"><button id="cloudExport">Download Local JSON Backup</button></div>
+<p class="muted" id="cloudStatus" aria-live="polite">Checking connection…</p>
+</div>
+</div></section>
 </section>
 </main>
 <script>
 const $=id=>document.getElementById(id), KEY='RPGUnleashedNotes.v1', uid=()=>crypto.randomUUID();
 const blank=(name,gm='')=>({id:uid(),name,gm,places:[],people:[],quests:[],entries:[]});
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-const state={theme:stored?.theme||'light',view:stored?.view||'auto',role:stored?.role==='player'?'player':'gm',campaigns:Array.isArray(stored?.campaigns)?stored.campaigns:[],activeCampaignId:stored?.activeCampaignId||null};
+const embedded=window.self!==window.top;let owlAccessRole=embedded?'UNKNOWN':'LOCAL';
+const state={theme:stored?.theme||'light',view:stored?.view||'auto',role:embedded?'player':(stored?.role==='player'?'player':'gm'),campaigns:embedded?[]:(Array.isArray(stored?.campaigns)?stored.campaigns:[]),activeCampaignId:embedded?null:(stored?.activeCampaignId||null)};
 state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= []});
 const expandedPlacePeople=new Set();
 let editingQuest=null, selectedQuestId=null, selectedPlaceId=null, selectedPersonId=null, lastParentChoice=null;
-function save(){try{localStorage.setItem(KEY,JSON.stringify({...state,version:2}))}catch(e){alert('Browser storage unavailable. Changes may not persist.')}}
+function save(){if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN')return;try{const snapshot={...state,role:owlAccessRole==='GM'?'gm':state.role,version:3};localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){alert('Browser storage unavailable. Changes may not persist.')}if(owlAccessRole==='GM'&&state.role==='gm')window.rpgScheduleCloudSave?.()}
 function safe(v){return String(v??'').replace(/[&<>"']/g,a=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]))}
 function current(){return state.campaigns.find(c=>c.id===state.activeCampaignId)}
 
@@ -83,8 +104,8 @@ function relatedNotes(type,id){const c=current();if(!c)return '';const sources=[
 
 function showScreen(name){if(name==='campaign'){state.activeCampaignId=null;$('campaignPicker').classList.remove('hidden');$('campaignWorkspace').classList.add('hidden');save();renderCampaigns()}['home','campaign','rules','options'].forEach(x=>$(x+'Screen').classList.toggle('screen-hidden',x!==name));window.scrollTo(0,0)}
 document.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
-function theme(){document.body.classList.toggle('player-view',state.role==='player');$('campaignView').value=state.role;document.body.classList.toggle('dark',state.theme==='dark');$('optionTheme').value=state.theme;$('campaignThemeToggle').value=state.theme;document.body.classList.toggle('force-mobile',state.view==='mobile');document.body.classList.toggle('force-desktop',state.view==='desktop');$('optionView').value=state.view}
-$('optionsGoHome').onclick=()=>showScreen('home');$('optionView').onchange=()=>{state.view=$('optionView').value;save();theme()};$('campaignView').onchange=()=>{state.role=$('campaignView').value;selectedPlaceId=null;selectedPersonId=null;selectedQuestId=null;expandedObjectives.clear();save();$('questMainPanel').classList.remove('hidden');$('questDetail').classList.add('hidden');$('questEditor').classList.toggle('hidden',state.role==='player');render();tab('quests')};$('optionTheme').onchange=()=>{state.theme=$('optionTheme').value;save();theme()};$('campaignThemeToggle').onchange=()=>{state.theme=$('campaignThemeToggle').value;save();theme()};
+function theme(){document.body.classList.toggle('player-view',state.role==='player');document.querySelector('.mode-switch')?.classList.toggle('hidden',owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN');$('campaignView').value=state.role;document.body.classList.toggle('dark',state.theme==='dark');$('optionTheme').value=state.theme;$('campaignThemeToggle').value=state.theme;document.body.classList.toggle('force-mobile',state.view==='mobile');document.body.classList.toggle('force-desktop',state.view==='desktop');$('optionView').value=state.view}
+$('optionsGoHome').onclick=()=>showScreen('home');$('optionView').onchange=()=>{state.view=$('optionView').value;save();theme()};$('campaignView').onchange=()=>{if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN'){state.role='player';theme();return}state.role=$('campaignView').value;selectedPlaceId=null;selectedPersonId=null;selectedQuestId=null;expandedObjectives.clear();save();$('questMainPanel').classList.remove('hidden');$('questDetail').classList.add('hidden');$('questEditor').classList.toggle('hidden',state.role==='player');render();tab('quests')};$('optionTheme').onchange=()=>{state.theme=$('optionTheme').value;save();theme()};$('campaignThemeToggle').onchange=()=>{state.theme=$('campaignThemeToggle').value;save();theme()};
 function renderCampaigns(){const c=current();$('campaignList').innerHTML=state.campaigns.map(x=>'<button class="campaign-card" data-open="'+safe(x.id)+'"><strong>'+safe(x.name)+'</strong><div class="secondary">'+x.places.length+' places · '+x.people.length+' people</div></button>').join('')||'<p class="muted">No campaigns created.</p>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openCampaign(b.dataset.open));$('campaignScreenHeading').textContent=c?.name||'Campaigns';$('campaignTitle').textContent=c?.gm?'GM: '+c.gm:'GM: Not set';if(c){$('campaignThemeToggle').value=state.theme}}
 $('editCampaignDetails').onclick=()=>{const c=current();if(!c)return;$('editCampaignName').value=c.name;$('editCampaignGM').value=c.gm||'';$('campaignDetailsForm').classList.toggle('hidden')};$('cancelCampaignDetails').onclick=()=>$('campaignDetailsForm').classList.add('hidden');$('saveCampaignDetails').onclick=()=>{const c=current();if(!c)return;const name=$('editCampaignName').value.trim();if(!name)return alert('Enter a campaign name.');c.name=name;c.gm=$('editCampaignGM').value.trim();$('campaignDetailsForm').classList.add('hidden');save();renderCampaigns()};$('campaignPickerHome').onclick=()=>showScreen('home');$('campaignGoHome').onclick=()=>showScreen('home');$('campaignGoList').onclick=()=>showScreen('campaign');function tab(name){if(name==='places'&&!selectedPlaceId)showPlaceIndex();document.querySelectorAll('[data-camp-tab]').forEach(b=>b.classList.toggle('active',b.dataset.campTab===name));document.querySelectorAll('.camp-pane').forEach(x=>x.classList.toggle('hidden',x.id!==name))}
 document.querySelectorAll('[data-camp-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.campTab));
@@ -388,6 +409,52 @@ $('activity').onchange=renderActivity;
 $('add').onclick=()=>{const c=current(),a=$('activity').value;if(!c)return;let body;if(a==='traveled'){if(!$('from')?.value||!$('to')?.value)return alert('Add places before recording travel.');body='We traveled from '+$('from').value+' to '+$('to').value+($('time').value?' in '+$('time').value:'')+'.'}else if(a==='camped')body='We camped '+Math.max(1,Number($('count').value)||1)+' time(s).';else{const target=$('subject')?.value?.trim();if(!target)return alert('Enter or select a subject first.');body='We '+(a==='talked'?'talked to':a)+' '+target+'.'}if($('extra').value.trim())body+=' '+$('extra').value.trim();c.entries.push({id:uid(),title:'Quick-Note',body,meta:'Party note'});$('extra').value='';save();render();$('quickFeedback').textContent='Added to journal.'};
 function renderJournal(){const c=current();if(!c)return;$('entries').innerHTML=c.entries.slice().reverse().map(e=>'<div class="entry"><strong>'+safe(e.title)+'</strong><div class="date">'+safe((e.meta||'').replace(/Session \\d+ ?[·-]? ?/g,''))+'</div><p>'+safe(e.body)+'</p><button class="small" data-delete-entry="'+safe(e.id)+'">Delete</button></div>').join('')||'<p class="muted">No notes yet.</p>';document.querySelectorAll('[data-delete-entry]').forEach(b=>b.onclick=()=>{if(!confirm('Delete entry?'))return;c.entries=c.entries.filter(e=>e.id!==b.dataset.deleteEntry);save();render()})}
 function render(){theme();renderCampaigns();renderPlacesPeople();renderQuests();renderActivity();renderJournal();attachMentions()}
+
+window.RPGNotesBridge={
+ getActiveCampaign:()=>current(),
+ getCampaignById:id=>state.campaigns.find(c=>c.id===id),
+ applyOwlRole:role=>{
+  owlAccessRole=role;
+  selectedPersonId=null;selectedQuestId=null;selectedPlaceId=null;
+  if(role==='PLAYER'){state.role='player';state.campaigns=[];state.activeCampaignId=null;}
+  else{let backup=null;try{backup=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+   state.campaigns=Array.isArray(backup?.campaigns)?backup.campaigns:[];
+   state.role='gm';state.activeCampaignId=null;
+  }
+  $('campaignWorkspace').classList.add('hidden');$('campaignPicker').classList.remove('hidden');render();
+ },
+ installCloudCampaign:campaign=>{
+  if(!campaign||!campaign.id)return;
+  campaign.places ||= [];campaign.people ||= [];campaign.quests ||= [];campaign.entries ||= [];campaign.groups ||= [];
+  const index=state.campaigns.findIndex(c=>c.id===campaign.id);
+  if(index<0)state.campaigns.push(campaign);else state.campaigns[index]=campaign;
+  if(owlAccessRole!=='PLAYER')save();
+  render();if(!state.activeCampaignId)openCampaign(campaign.id);
+ },
+ installPlayerSnapshot:campaign=>{
+  if(owlAccessRole!=='PLAYER'||!campaign?.id)return;
+  campaign.places ||= [];campaign.people ||= [];campaign.quests ||= [];campaign.entries ||= [];campaign.groups ||= [];
+  const previous=state.activeCampaignId;
+  state.campaigns=[campaign];
+  if(previous!==campaign.id){state.activeCampaignId=null;openCampaign(campaign.id)}
+  else{render();if(selectedPersonId)renderPersonDetail();if(selectedQuestId)renderQuestDetail();}
+ },
+ showPlayerMessage:msg=>{
+  if(owlAccessRole!=='PLAYER')return;
+  state.campaigns=[];state.activeCampaignId=null;
+  $('campaignWorkspace').classList.add('hidden');$('campaignPicker').classList.remove('hidden');
+  render();$('campaignList').textContent=msg;
+ },
+ exportBackup:()=>{
+  let backup={...state,version:3};
+  if(owlAccessRole==='PLAYER')return;
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='RPGUnleashedNotes-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
+};
+
 state.activeCampaignId=null;$('campaignPicker').classList.remove('hidden');$('campaignWorkspace').classList.add('hidden');
 render();
-</script></body></html>
+</script><script type="module" src="cloud-sync.js"></script></body></html>
