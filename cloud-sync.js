@@ -13,7 +13,7 @@ let credentials={};
 try{const stored=JSON.parse(localStorage.getItem(CREDS_KEY)||'{}');if(stored&&typeof stored==='object'&&!Array.isArray(stored))credentials=stored}catch{}
 const msg=s=>{if(el('cloudStatus'))el('cloudStatus').textContent=s};
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
-const cleanCampaign=c=>{if(!c||typeof c!=='object')return c;const copy={...c};delete copy.acceptedQuestIds;delete copy.partyQuestNotes;return copy};
+const cleanCampaign=c=>{if(!c||typeof c!=='object')return c;const copy={...c};delete copy.acceptedQuestIds;delete copy.partyQuestNotes;delete copy.sharedNotes;return copy};
 const same=(a,b)=>JSON.stringify(canonical(cleanCampaign(a)))===JSON.stringify(canonical(cleanCampaign(b)));
 const validKey=k=>typeof k==='string'&&/^[A-Za-z0-9_-]{43}$/.test(k);
 const saveCredentials=()=>localStorage.setItem(CREDS_KEY,JSON.stringify(credentials));
@@ -206,9 +206,28 @@ async function refreshBoardActivity(){
  if(!roomId||owlRole!=='GM'||!linkedCampaign)return;
  const {data,error}=await db.rpc('get_player_snapshot',{requested_room_id:roomId});
  if(error||!data||data.id!==linkedCampaign)return;
- const revision=JSON.stringify([data.acceptedQuestIds||[],data.partyQuestNotes||[]]);
+ const revision=JSON.stringify([data.acceptedQuestIds||[],data.partyQuestNotes||[],data.sharedNotes||[]]);
  if(revision!==lastBoardRevision){lastBoardRevision=revision;bridge.applyBoardUpdates(data)}
 }
+
+window.rpgPostSharedNote=async (kind,type,targetId,title,author,body)=>{
+ if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open RPGUnleashedNotes inside an Owlbear room.');
+ if(kind!=='comment'&&kind!=='journal')throw Error('Invalid note type.');
+ if(typeof body!=='string'||!body.trim()||body.length>2000)throw Error('Note must be between 1 and 2000 characters.');
+ const {data,error}=await db.rpc('post_room_shared_note',{
+  requested_room_id:roomId,
+  requested_kind:kind,
+  requested_target_type:kind==='comment'?type:null,
+  requested_target_id:kind==='comment'?targetId:null,
+  note_title:typeof title==='string'?title:'',
+  note_author:(typeof author==='string'&&author.trim()?author.trim():'Player').slice(0,60),
+  note_body:body.trim()
+ });
+ if(error)throw Error(error.message);
+ if(data!==true)throw Error('This note could not be posted. Verify that the campaign is published, then try again.');
+ if(owlRole==='PLAYER')await refreshPlayer();else await refreshBoardActivity();
+};
+
 window.rpgAcceptBoardQuest=async questId=>{
  if(owlRole!=='PLAYER'||!roomId)throw Error('Only players in an Owlbear room can accept a party quest.');
  const {data,error}=await db.rpc('accept_board_quest',{requested_room_id:roomId,requested_quest_id:questId});
