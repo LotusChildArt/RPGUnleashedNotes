@@ -60,23 +60,25 @@ body.owlbear-player .mode-switch,body.owlbear-player #cloudPanel,body.owlbear-pl
 <section id="people" class="hidden camp-pane"><nav class="tabs" id="peopleSubtabs"><button id="peopleSubtabPeople" class="tab active">People</button><button id="peopleSubtabGroups" class="tab">Groups</button></nav><div class="panel" id="peopleMainPanel"><div class="group-head"><h2 id="peopleListHeading">People</h2><button id="toggleAddPerson" class="small" aria-expanded="false" aria-controls="addPersonFields">+ Person</button></div><div id="peopleList"></div></div><div class="panel" id="personCreatePanel"><div id="addPersonFields" class="place-form hidden"><div class="group-head"><h2>Create Person</h2><button id="cancelPersonCreate" class="small">← People</button></div><div class="line"><label><input type="checkbox" id="personBulkMode"> Add Multiple</label><button class="small" id="bulkPersonHelp" title="Bulk creation help" aria-label="Bulk creation help">?</button></div><div id="bulkPersonFields" class="field hidden"><label for="personBulkNames">People (comma or newline separated)</label><textarea id="personBulkNames" rows="4" placeholder="James (G-M, A-Adult, R-Human, RO-Blacksmith), Elizabeth (G-F, RO-Healer)"></textarea><p class="muted">Use G-, A-, R-, or RO- inside each person’s parentheses for optional details.</p></div><div id="singlePersonName" class="field"><label for="personName">Name</label><input id="personName" placeholder="e.g. Village Elder"></div><div class="field-row"><div class="field" id="personRoleField"><label for="personRole">Role / occupation</label><input id="personRole" placeholder="e.g. Blacksmith"></div><div class="field"><label for="personPlace">Current location (optional)</label><select id="personPlace"><option value="">None</option></select></div></div><div id="singlePersonExtras" class="field-row"><div class="field"><label for="personGender">Gender</label><input id="personGender" placeholder="Male"></div><div class="field"><label for="personAge">Age group</label><input id="personAge" placeholder="Adult"></div><div class="field"><label for="personRace">Race</label><input id="personRace" placeholder="Human"></div></div><div id="singlePersonNotes" class="field"><label for="personDetails">Notes (optional)</label><textarea id="personDetails"></textarea></div><button id="savePerson" class="primary">Add Person</button></div></div><div id="groupsPanel" class="panel"><div class="group-head"><h3>Groups</h3><button id="toggleGroupForm" class="small">+ Group</button></div><div id="groupsList"></div></div><div id="groupCreatePanel" class="panel hidden"><div id="groupCreateForm" class="place-form group-form"><div class="group-head"><h2>Create Group</h2><button id="backGroupCreate" class="small">← Groups</button></div><label>Group name</label><input id="newGroupName" placeholder="e.g. Smiths’ Guild"><label>Type</label><select id="newGroupType"><option>Family</option><option>Guild</option><option>Faction</option><option>Organization</option><option>Party</option><option>Military</option><option>Religious</option><option>Criminal</option><option>Other</option></select><label>Description</label><textarea id="newGroupDescription"></textarea><div class="actions"><button class="primary" id="saveGroup">Create Group</button><button id="cancelGroup">Cancel</button></div></div></div><div id="groupDetail" class="panel hidden"></div><div id="personDetail" class="panel hidden"></div></section>
 <section id="settings" class="hidden camp-pane"><div class="panel"><h2>Options</h2><div class="main-menu-actions"><button id="campaignGoHome" class="main-menu-button">Main Menu</button><button id="campaignGoList" class="main-menu-button">Campaigns</button></div><button id="editCampaignDetails" class="main-menu-button" style="margin-top:12px">Edit Campaign Details</button><div id="campaignDetailsForm" class="place-form hidden" style="margin-top:12px"><div class="field"><label for="editCampaignName">Campaign name</label><input id="editCampaignName"></div><div class="field"><label for="editCampaignGM">GM name</label><input id="editCampaignGM"></div><div class="actions"><button id="saveCampaignDetails" class="primary">Save Changes</button><button id="cancelCampaignDetails">Cancel</button></div></div><div class="field" style="margin-top:18px"><label for="campaignThemeToggle">Theme</label><select id="campaignThemeToggle"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select></div>
 <div id="cloudPanel" class="place-hub-section">
-<h3>Owlbear · Shared Campaign</h3>
-<p class="muted">No additional account required. Your recovery file unlocks this campaign on another device. Keep it private: anyone who has the file can control the campaign.</p>
-<p class="muted">Room: <strong id="cloudRoom">Checking Owlbear…</strong></p>
-<p id="cloudLinked" class="muted">No campaign linked yet.</p>
+<div class="actions"><button class="primary" id="cloudPublish">Publish / Link This Campaign</button></div>
+<p class="muted" id="cloudStatus" aria-live="polite">Checking connection…</p>
+<details id="cloudBackupDetails" class="place-hub-section" style="margin-top:14px">
+<summary style="cursor:pointer;font-weight:bold;padding:8px 0">Campaign Backup Options</summary>
+<p class="muted">The recovery file is a private access credential, not a copy of the campaign. Keep it safe: anyone with it can manage the cloud campaign.</p>
+<p class="muted">Owlbear room: <strong id="cloudRoom">Checking Owlbear…</strong></p>
+<p id="cloudLinked" class="muted">No cloud campaign linked yet.</p>
 <div class="actions">
-<button class="primary" id="cloudPublish">Publish / Link This Campaign</button>
+<button id="cloudExport">Download Campaign JSON Backup</button>
+<button id="cloudImport">Import Campaign JSON Backup</button>
+</div>
+<input type="file" id="cloudImportFile" accept=".json,application/json" class="hidden">
+<div class="actions" style="margin-top:12px">
 <button id="cloudRestore">Restore Cloud Campaign</button>
 <button id="cloudRecoveryDownload">Download Recovery File</button>
 <button id="cloudRotate">Replace Recovery Key</button>
 </div>
 <input type="file" id="cloudRecoveryFile" accept=".json,application/json" class="hidden">
-<div class="actions">
-<button id="cloudExport">Download Campaign JSON Backup</button>
-<button id="cloudImport">Import Campaign JSON Backup</button>
-<input type="file" id="cloudImportFile" accept=".json,application/json" class="hidden">
-</div>
-<p class="muted" id="cloudStatus" aria-live="polite">Checking connection…</p>
+</details>
 </div>
 </div></section>
 </section>
