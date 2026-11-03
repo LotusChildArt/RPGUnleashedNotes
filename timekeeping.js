@@ -130,9 +130,10 @@ function drawCalendars(t){
   if(open){
    let offset=monthViews[cal.id]||0;
    function updateView(){
-    const cursor=toDate(cal,t.day),total=cursor.year*cal.months.length+cursor.month+offset,base=cursor.year*cal.months.length;
-    const year=Math.max(1,Math.floor((total-1)/cal.months.length));
-    const month=Math.max(0,Math.min(cal.months.length-1,total-year*cal.months.length));
+    const cursor=toDate(cal,t.day),count=cal.months.length;
+    const absolute=Math.max(0,(cursor.year-1)*count+cursor.month+(monthViews[cal.id]||0));
+    const year=Math.floor(absolute/count)+1;
+    const month=absolute%count;
     item.querySelector('[data-cal-label]').textContent=cal.months[month].name+' · Year '+year;
     item.querySelector('[data-cal-grid]').innerHTML=calendarGrid(cal,year,month,t.day);
    }
