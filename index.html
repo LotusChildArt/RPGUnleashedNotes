@@ -625,8 +625,9 @@ function renderJournal(){
  const local=(c.entries||[]).map(e=>({...e,shared:false}));
  const shared=(c.sharedNotes||[]).filter(n=>n.kind==='journal').map(n=>({id:n.id,title:n.title||'Quick-Note',body:n.body,meta:'Party journal',author:n.author,createdAt:n.createdAt,shared:true}));
  const entries=[...local,...shared].reverse();
- $('entries').innerHTML=entries.map(e=>'<div class="entry"><strong>'+safe(e.title||'Quick-Note')+'</strong>'+(e.shared?'<div class="subtle-info">Shared by '+safe(e.author||'Player')+(e.createdAt?' · '+safe(new Date(e.createdAt).toLocaleString()):'')+'</div>':'<div class="date">'+safe((e.meta||'').replace(/Session \d+ ?[·-]? ?/g,''))+'</div>')+'<p>'+safe(e.body)+'</p>'+(!e.shared&&owlAccessRole!=='PLAYER'?'<button class="small" data-delete-entry="'+safe(e.id)+'">Delete</button>':'')+'</div>').join('')||'<p class="muted">No journal entries yet.</p>';
+ $('entries').innerHTML=entries.map(e=>'<div class="entry"><strong>'+safe(e.title||'Quick-Note')+'</strong>'+(e.shared?'<div class="subtle-info">Shared by '+safe(e.author||'Player')+(e.createdAt?' · '+safe(new Date(e.createdAt).toLocaleString()):'')+'</div>':'<div class="date">'+safe((e.meta||'').replace(/Session \d+ ?[·-]? ?/g,''))+'</div>')+'<p>'+noteHTML(e)+'</p>'+(!e.shared&&owlAccessRole!=='PLAYER'?'<button class="small" data-delete-entry="'+safe(e.id)+'">Delete</button>':'')+'</div>').join('')||'<p class="muted">No journal entries yet.</p>';
  document.querySelectorAll('[data-delete-entry]').forEach(b=>b.onclick=()=>{if(!confirm('Delete entry?'))return;c.entries=c.entries.filter(e=>e.id!==b.dataset.deleteEntry);save();render()});
+ wireMentionLinks($('entries'));
 }
 
 function render(){theme();renderCampaigns();renderPlacesPeople();renderQuests();renderActivity();renderJournal();attachMentions()}
