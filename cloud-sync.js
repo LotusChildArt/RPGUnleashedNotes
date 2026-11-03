@@ -9,6 +9,8 @@ let roomId=null,owlRole='UNKNOWN',loggedInUser=null,linkedCampaign=null,lastSnap
 const el=id=>document.getElementById(id);
 const message=(text)=>{if(el('cloudStatus'))el('cloudStatus').textContent=text};
 const remoteOnly=()=>owlRole==='PLAYER';
+const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
+const sameCampaign=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
 function setAuthUI(){
  const authorized=!!loggedInUser;
  el('cloudAuthForm')?.classList.toggle('hidden',authorized);
@@ -31,7 +33,7 @@ async function findRoomCampaign(){
  linkedCampaign=data.id;syncBlocked=false;setAuthUI();
  const local=bridge.getCampaignById(data.id);
  if(!local){bridge.installCloudCampaign(data.payload);message('Loaded the campaign linked to this Owlbear room.');}
- else if(JSON.stringify(local)!==JSON.stringify(data.payload)){syncBlocked=true;message('Cloud updates paused: your local and cloud copies differ. Use Load Cloud Campaigns to choose a copy, or Publish Current Campaign to intentionally replace the cloud copy.');}
+ else if(!sameCampaign(local,data.payload)){syncBlocked=true;message('Cloud updates paused: your local and cloud copies differ. Use Load Cloud Campaigns to choose a copy, or Publish Current Campaign to intentionally replace the cloud copy.');}
  else message('Campaign connected to this Owlbear room.');
 }
 async function push(){
@@ -78,7 +80,7 @@ async function loadOwned(){
  let imported=0;
  for(const entry of data){
   const local=bridge.getCampaignById(entry.id);
-  if(local&&JSON.stringify(local)!==JSON.stringify(entry.payload)&&!confirm('Replace the local copy of "'+(local.name||entry.payload.name)+'" with its cloud copy? A local JSON backup has just been downloaded.'))continue;
+  if(local&&!sameCampaign(local,entry.payload)&&!confirm('Replace the local copy of "'+(local.name||entry.payload.name)+'" with its cloud copy? A local JSON backup has just been downloaded.'))continue;
   bridge.installCloudCampaign(entry.payload);if(entry.id===linkedCampaign)syncBlocked=false;imported++;
  }
  message(imported+' campaign(s) loaded from Supabase. Your local backup was downloaded first.');
