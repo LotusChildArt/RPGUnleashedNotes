@@ -82,11 +82,13 @@ body.owlbear-player #cloudPanel,body.owlbear-player .note-controls,body.owlbear-
 </section>
 </main>
 <script>
-const $=id=>document.getElementById(id), KEY='RPGUnleashedNotes.v1', uid=()=>crypto.randomUUID();
+const $=id=>document.getElementById(id), KEY='RPGUnleashedNotes.v1', PREF_KEY='RPGUnleashedNotes.preferences.v1', uid=()=>crypto.randomUUID();
 const blank=(name,gm='')=>({id:uid(),name,gm,places:[],people:[],quests:[],entries:[]});
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{}}catch(e){}
+function persistPreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){console.warn('Unable to save appearance preferences',e)}}
 const embedded=window.self!==window.top;let owlAccessRole=embedded?'UNKNOWN':'LOCAL';
-const state={theme:stored?.theme||'light',view:stored?.view||'auto',role:embedded?'player':(stored?.role==='player'?'player':'gm'),campaigns:embedded?[]:(Array.isArray(stored?.campaigns)?stored.campaigns:[]),activeCampaignId:embedded?null:(stored?.activeCampaignId||null)};
+const state={theme:(preferences.theme==='dark'||preferences.theme==='light')?preferences.theme:((stored?.theme==='dark')?'dark':'light'),view:['auto','desktop','mobile'].includes(preferences.view)?preferences.view:(stored?.view||'auto'),role:embedded?'player':(stored?.role==='player'?'player':'gm'),campaigns:embedded?[]:(Array.isArray(stored?.campaigns)?stored.campaigns:[]),activeCampaignId:embedded?null:(stored?.activeCampaignId||null)};
 state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= []});
 const expandedPlacePeople=new Set();
 let editingQuest=null, selectedQuestId=null, selectedPlaceId=null, selectedPersonId=null, lastParentChoice=null;
@@ -106,11 +108,11 @@ function relatedNotes(type,id){const c=current();if(!c)return '';const sources=[
 function showScreen(name){if(name==='campaign'){state.activeCampaignId=null;$('campaignPicker').classList.remove('hidden');$('campaignWorkspace').classList.add('hidden');save();renderCampaigns()}['home','campaign','rules','options'].forEach(x=>$(x+'Screen').classList.toggle('screen-hidden',x!==name));window.scrollTo(0,0)}
 document.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
 function theme(){document.body.classList.toggle('player-view',state.role==='player');document.body.classList.toggle('owlbear-player',owlAccessRole==='PLAYER');document.querySelector('.mode-switch')?.classList.toggle('hidden',owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN');$('campaignView').value=state.role;document.body.classList.toggle('dark',state.theme==='dark');$('optionTheme').value=state.theme;$('campaignThemeToggle').value=state.theme;document.body.classList.toggle('force-mobile',state.view==='mobile');document.body.classList.toggle('force-desktop',state.view==='desktop');$('optionView').value=state.view}
-$('optionsGoHome').onclick=()=>showScreen('home');$('optionView').onchange=()=>{state.view=$('optionView').value;save();theme()};$('campaignView').onchange=()=>{if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN'){state.role='player';theme();return}state.role=$('campaignView').value;selectedPlaceId=null;selectedPersonId=null;selectedQuestId=null;expandedObjectives.clear();save();$('questMainPanel').classList.remove('hidden');$('questDetail').classList.add('hidden');$('questEditor').classList.toggle('hidden',state.role==='player');render();tab('quests')};$('optionTheme').onchange=()=>{state.theme=$('optionTheme').value;save();theme()};$('campaignThemeToggle').onchange=()=>{state.theme=$('campaignThemeToggle').value;save();theme()};
+$('optionsGoHome').onclick=()=>showScreen('home');$('optionView').onchange=()=>{state.view=$('optionView').value;persistPreferences();save();theme()};$('campaignView').onchange=()=>{if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN'){state.role='player';theme();return}state.role=$('campaignView').value;selectedPlaceId=null;selectedPersonId=null;selectedQuestId=null;expandedObjectives.clear();save();$('questMainPanel').classList.remove('hidden');$('questDetail').classList.add('hidden');$('questEditor').classList.toggle('hidden',state.role==='player');render();tab('quests')};$('optionTheme').onchange=()=>{state.theme=$('optionTheme').value;persistPreferences();save();theme()};$('campaignThemeToggle').onchange=()=>{state.theme=$('campaignThemeToggle').value;persistPreferences();save();theme()};
 function renderCampaigns(){const c=current();$('campaignList').innerHTML=state.campaigns.map(x=>'<button class="campaign-card" data-open="'+safe(x.id)+'"><strong>'+safe(x.name)+'</strong><div class="secondary">'+x.places.length+' places · '+x.people.length+' people</div></button>').join('')||'<p class="muted">No campaigns created.</p>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openCampaign(b.dataset.open));$('campaignScreenHeading').textContent=c?.name||'Campaigns';$('campaignTitle').textContent=c?.gm?'GM: '+c.gm:'GM: Not set';if(c){$('campaignThemeToggle').value=state.theme}}
 $('editCampaignDetails').onclick=()=>{const c=current();if(!c)return;$('editCampaignName').value=c.name;$('editCampaignGM').value=c.gm||'';$('campaignDetailsForm').classList.toggle('hidden')};$('cancelCampaignDetails').onclick=()=>$('campaignDetailsForm').classList.add('hidden');$('saveCampaignDetails').onclick=()=>{const c=current();if(!c)return;const name=$('editCampaignName').value.trim();if(!name)return alert('Enter a campaign name.');c.name=name;c.gm=$('editCampaignGM').value.trim();$('campaignDetailsForm').classList.add('hidden');save();renderCampaigns()};$('campaignPickerHome').onclick=()=>showScreen('home');$('campaignGoHome').onclick=()=>showScreen('home');$('campaignGoList').onclick=()=>showScreen('campaign');function tab(name){if(name==='places'&&!selectedPlaceId)showPlaceIndex();document.querySelectorAll('[data-camp-tab]').forEach(b=>b.classList.toggle('active',b.dataset.campTab===name));document.querySelectorAll('.camp-pane').forEach(x=>x.classList.toggle('hidden',x.id!==name))}
 document.querySelectorAll('[data-camp-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.campTab));
-function openCampaign(id){$('questMainPanel').classList.remove('hidden');$('personCreatePanel').classList.remove('hidden');$('peopleMainPanel').classList.remove('hidden');selectedQuestId=null;$('questList').classList.remove('hidden');$('questDetail').classList.add('hidden');if(!state.campaigns.some(c=>c.id===id))return;state.activeCampaignId=id;$('campaignPicker').classList.add('hidden');$('campaignWorkspace').classList.remove('hidden');$('questEditor').classList.remove('hidden');toggleQuest(false);selectedPlaceId=null;selectedPersonId=null;tab('quests');save();render();$('questEditor').classList.toggle('hidden',state.role==='player')}
+function openCampaign(id){$('questMainPanel').classList.remove('hidden');$('personCreatePanel').classList.remove('hidden');$('peopleMainPanel').classList.remove('hidden');selectedQuestId=null;$('questList').classList.remove('hidden');$('questDetail').classList.add('hidden');if(!state.campaigns.some(c=>c.id===id))return;state.activeCampaignId=id;$('campaignPicker').classList.add('hidden');$('campaignWorkspace').classList.remove('hidden');$('questEditor').classList.remove('hidden');toggleQuest(false);selectedPlaceId=null;selectedPersonId=null;tab('quests');save();render();$('questEditor').classList.toggle('hidden',state.role==='player');if(owlAccessRole==='GM')window.rpgRefreshSharedActivity?.()}
 $('newCampaign').onclick=()=>{const n=prompt('Campaign name');if(!n?.trim())return;const gm=prompt('GM name (optional)')||'';const c=blank(n.trim(),gm.trim());state.campaigns.push(c);openCampaign(c.id)};
 $('toggleAddPlace').onclick=()=>{$('addPlaceFields').classList.remove('hidden');$('placeIndex').classList.add('hidden')};$('cancelPlaceCreate').onclick=()=>{$('addPlaceFields').classList.add('hidden');$('placeIndex').classList.remove('hidden')};
 $('placeType').onchange=()=>{$('customPlaceWrap').classList.toggle('hidden',$('placeType').value!=='Other');lastParentChoice='';renderParentSelect()};$('placeParent').onchange=()=>{lastParentChoice=$('placeParent').value};
@@ -532,7 +534,19 @@ function render(){theme();renderCampaigns();renderPlacesPeople();renderQuests();
 window.RPGNotesBridge={
  getActiveCampaign:()=>current(),
  getCampaignById:id=>state.campaigns.find(c=>c.id===id),
- applyBoardUpdates:(data)=>{const c=current();if(!c||!data||c.id!==data.id)return;c.acceptedQuestIds=Array.isArray(data.acceptedQuestIds)?data.acceptedQuestIds:[];c.partyQuestNotes=Array.isArray(data.partyQuestNotes)?data.partyQuestNotes:[];c.sharedNotes=Array.isArray(data.sharedNotes)?data.sharedNotes:[];renderQuests();renderJournal();if(selectedPlaceId)renderPlaceHub();if(selectedPersonId)renderPersonDetail();if(selectedQuestId)renderQuestDetail();},
+ applyBoardUpdates:(data)=>{
+  if(!data?.id)return;
+  const c=state.campaigns.find(x=>x.id===data.id);
+  if(!c)return;
+  c.acceptedQuestIds=Array.isArray(data.acceptedQuestIds)?data.acceptedQuestIds:[];
+  c.partyQuestNotes=Array.isArray(data.partyQuestNotes)?data.partyQuestNotes:[];
+  c.sharedNotes=Array.isArray(data.sharedNotes)?data.sharedNotes:[];
+  if(state.activeCampaignId!==data.id)return;
+  renderQuests();renderJournal();
+  if(selectedPlaceId)renderPlaceHub();
+  if(selectedPersonId)renderPersonDetail();
+  if(selectedQuestId)renderQuestDetail();
+ },
  applyOwlRole:role=>{
   owlAccessRole=role;
   selectedPersonId=null;selectedQuestId=null;selectedPlaceId=null;
