@@ -258,7 +258,7 @@ function sharedAuthorOptions(c){
 }
 function sharedNotePanel(type,id){
  const c=current(),notes=(c?.sharedNotes||[]).filter(n=>n.kind==='comment'&&n.targetType===type&&n.targetId===id);
- const writable=owlAccessRole==='PLAYER'||owlAccessRole==='GM';
+ const writable=true; // Keep Shared Notes controls visible regardless of Owlbear role detection timing.
  const options=sharedAuthorOptions(c);
  const roots=notes.filter(n=>!n.parentId);
  const items=roots.map(n=>{
@@ -274,7 +274,7 @@ function sharedNotePanel(type,id){
  }).join('')||'<p class="muted">No shared notes yet.</p>';
  const compact=state.role==='player'&&roots.length===0;
  return (compact?'<div class="shared-notes-compact"><div class="shared-notes-list hidden"></div>':'<div class="place-hub-section"><h3>Shared Notes</h3><p class="muted">Visible to the GM and all players. This is a shared conversation, not a personal notebook.</p><div class="shared-notes-list">'+items+'</div>')+
- (writable?'<button class="place-add-toggle" data-shared-new>'+(compact?'+ Shared Note':'+ Note')+'</button><div class="place-note-form hidden" data-shared-form><label class="note-source-row"><input type="checkbox" data-shared-new-source> Add source</label><div class="hidden" data-shared-new-source-fields><select data-shared-new-author>'+options+'</select><input data-shared-new-custom class="hidden" placeholder="Enter a name" maxlength="60"></div><textarea data-shared-new-body maxlength="2000" placeholder="Add a shared note…"></textarea><button class="primary" data-shared-post>Post Note</button><p class="muted" data-shared-result aria-live="polite"></p></div>':'')+'</div>';
+ (writable?'<button class="place-add-toggle" data-shared-new>+ Shared Note</button><div class="place-note-form hidden" data-shared-form><label class="note-source-row"><input type="checkbox" data-shared-new-source> Add source</label><div class="hidden" data-shared-new-source-fields><select data-shared-new-author>'+options+'</select><input data-shared-new-custom class="hidden" placeholder="Enter a name" maxlength="60"></div><textarea data-shared-new-body maxlength="2000" placeholder="Add a shared note…"></textarea><button class="primary" data-shared-post>Post Note</button><p class="muted" data-shared-result aria-live="polite"></p></div>':'')+'</div>';
 }
 function wireSharedNotePanel(type,id,root){
  const group=root.querySelector('.shared-notes-list')?.parentElement;
