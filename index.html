@@ -86,7 +86,7 @@ const $=id=>document.getElementById(id), KEY='RPGUnleashedNotes.v1', PREF_KEY='R
 const blank=(name,gm='')=>({id:uid(),name,gm,places:[],people:[],quests:[],entries:[]});
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')||{}}catch(e){}
-function persistPreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){console.warn('Unable to save appearance preferences',e)}}
+function persistPreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){console.warn('Unable to save appearance preferences',e)}window.rpgSaveOwlPreferences?.(state.theme)}
 const embedded=window.self!==window.top;let owlAccessRole=embedded?'UNKNOWN':'LOCAL';
 const state={theme:(preferences.theme==='dark'||preferences.theme==='light')?preferences.theme:((stored?.theme==='dark')?'dark':'light'),view:['auto','desktop','mobile'].includes(preferences.view)?preferences.view:(stored?.view||'auto'),role:embedded?'player':(stored?.role==='player'?'player':'gm'),campaigns:embedded?[]:(Array.isArray(stored?.campaigns)?stored.campaigns:[]),activeCampaignId:embedded?null:(stored?.activeCampaignId||null)};
 state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= []});
@@ -99,7 +99,38 @@ function current(){return state.campaigns.find(c=>c.id===state.activeCampaignId)
 const mentionDrafts=new WeakMap();
 function mentionRecords(){const c=current();if(!c)return [];return [...c.people.map(x=>({type:'person',id:x.id,name:x.name,hint:x.role||'Person',prefix:'@'})),...c.places.map(x=>({type:'place',id:x.id,name:x.name,hint:x.type||'Place',prefix:'@'})),...c.quests.map(x=>({type:'quest',id:x.id,name:x.title,hint:x.status||'Quest',prefix:'#'}))]}
 function mentionRecord(m){return mentionRecords().find(x=>x.type===m.type&&x.id===m.id)}
-function noteHTML(n){const body=String(n.body||''),mentions=(n.mentions||[]).slice().sort((a,b)=>a.start-b.start);let output='',cursor=0;for(const m of mentions){if(m.start<cursor||m.start<0||m.end>body.length)continue;const target=mentionRecord(m);if(!target)continue;output+=safe(body.slice(cursor,m.start));output+='<button class="mention-link" data-mention-type="'+safe(m.type)+'" data-mention-id="'+safe(m.id)+'">'+safe(target.prefix+target.name)+'</button>';cursor=m.end}return output+safe(body.slice(cursor))}
+
+function linkedNoteText(text){
+ const known=mentionRecords().slice().sort((a,b)=>b.name.length-a.name.length);
+ let result='',offset=0;
+ for(let i=0;i<text.length;){
+  const prefix=text[i];
+  if((prefix==='@'||prefix==='#')&&(i===0||!/[A-Za-z0-9_]/.test(text[i-1]))){
+   const target=known.find(item=>item.prefix===prefix&&text.slice(i+1,i+1+item.name.length).toLowerCase()===item.name.toLowerCase()&&(!text[i+1+item.name.length]||!/[A-Za-z0-9_]/.test(text[i+1+item.name.length])));
+   if(target){
+    result+=safe(text.slice(offset,i));
+    result+='<button type="button" class="mention-link" data-mention-type="'+safe(target.type)+'" data-mention-id="'+safe(target.id)+'">'+safe(prefix+target.name)+'</button>';
+    i+=1+target.name.length;offset=i;continue;
+   }
+  }
+  i++;
+ }
+ return result+safe(text.slice(offset));
+}
+function noteHTML(n){
+ const body=String(n.body||''),mentions=Array.isArray(n.mentions)?n.mentions.slice().sort((a,b)=>a.start-b.start):[];
+ let output='',cursor=0;
+ for(const m of mentions){
+  if(!Number.isInteger(m.start)||!Number.isInteger(m.end)||m.start<cursor||m.end>body.length||m.end<=m.start)continue;
+  const target=mentionRecord(m);
+  if(!target)continue;
+  output+=linkedNoteText(body.slice(cursor,m.start));
+  output+='<button type="button" class="mention-link" data-mention-type="'+safe(m.type)+'" data-mention-id="'+safe(m.id)+'">'+safe(body.slice(m.start,m.end))+'</button>';
+  cursor=m.end;
+ }
+ return output+linkedNoteText(body.slice(cursor));
+}
+
 function wireMentionLinks(root){root.querySelectorAll('[data-mention-type][data-mention-id]').forEach(b=>b.onclick=()=>{const type=b.dataset.mentionType,id=b.dataset.mentionId;if(type==='person'){tab('people');selectedPersonId=id;renderPersonDetail()}else if(type==='place'){tab('places');openPlace(id)}else{tab('quests');openQuest(id)}})}
 function attachMentions(root=document){root.querySelectorAll('textarea:not([data-mentions-ready])').forEach(el=>{el.dataset.mentionsReady='1';let previous=el.value;const matches=()=>{const prefix=el.value.slice(0,el.selectionStart),m=prefix.match(/(^|[\s(])([@#])([^@#\n]{0,60})$/);if(!m)return null;return {start:el.selectionStart-m[2].length-m[3].length,kind:m[2],query:m[3].toLowerCase()}};const menu=document.createElement('div');menu.className='mention-suggestions hidden';el.insertAdjacentElement('afterend',menu);const update=()=>{const found=matches();const choices=found?mentionRecords().filter(x=>x.prefix===found.kind&&x.name.toLowerCase().includes(found.query)).slice(0,8):[];menu.replaceChildren();menu.classList.toggle('hidden',!choices.length);choices.forEach(item=>{const b=document.createElement('button');b.type='button';b.className='mention-suggestion';b.textContent=item.prefix+item.name+' · '+(item.type==='person'?'Person':item.type==='place'?'Place':'Quest')+' · '+item.hint;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const end=el.selectionStart,insert=item.prefix+item.name,tail=el.value.slice(end),old=el.value;el.value=old.slice(0,found.start)+insert+tail;const draft=mentionDrafts.get(el)||[];const delta=insert.length-(end-found.start);mentionDrafts.set(el,draft.filter(x=>x.end<=found.start||x.start>=end).map(x=>x.start>=end?{...x,start:x.start+delta,end:x.end+delta}:x).concat({start:found.start,end:found.start+insert.length,id:item.id,type:item.type}));previous=el.value;el.focus();el.setSelectionRange(found.start+insert.length,found.start+insert.length);update()};menu.append(b)})};el.addEventListener('input',()=>{const next=el.value;let a=0;while(a<previous.length&&a<next.length&&previous[a]===next[a])a++;let z=0;while(z<previous.length-a&&z<next.length-a&&previous[previous.length-1-z]===next[next.length-1-z])z++;const oldEnd=previous.length-z,delta=next.length-previous.length;mentionDrafts.set(el,(mentionDrafts.get(el)||[]).filter(m=>m.end<=a||m.start>=oldEnd).map(m=>m.start>=oldEnd?{...m,start:m.start+delta,end:m.end+delta}:m));previous=next;update()});el.addEventListener('click',update);el.addEventListener('keyup',update);el.addEventListener('blur',()=>setTimeout(()=>menu.classList.add('hidden'),180))})}
 function noteMentions(el){const offset=el.value.length-el.value.trimStart().length,body=el.value.trim();return (mentionDrafts.get(el)||[]).filter(m=>m.start>=offset&&m.end-offset<=body.length&&el.value.slice(m.start,m.end).startsWith(m.type==='quest'?'#':'@')).map(m=>({...m,start:m.start-offset,end:m.end-offset}))}
@@ -601,6 +632,7 @@ function renderJournal(){
 function render(){theme();renderCampaigns();renderPlacesPeople();renderQuests();renderActivity();renderJournal();attachMentions()}
 
 window.RPGNotesBridge={
+ applyOwlAppearance:appearance=>{if(appearance!=='dark'&&appearance!=='light')return;state.theme=appearance;try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){}theme()},
  getActiveCampaign:()=>current(),
  getCampaignById:id=>state.campaigns.find(c=>c.id===id),
  applyBoardUpdates:(data)=>{
