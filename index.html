@@ -807,6 +807,15 @@ window.RPGNotesBridge={
    if(index===-1)state.campaigns.push(entry);else state.campaigns[index]=entry;
    imported++;
   }
+  if(Array.isArray(backup?.bestiary)&&backup.bestiary.length){
+   if(confirm('This backup also contains '+backup.bestiary.length+' global Bestiary entries. Import them?')){
+    const existingIds=new Set(state.bestiary.map(x=>x.id));
+    for(const record of backup.bestiary){
+     if(!record?.id||typeof record.name!=='string')continue;
+     if(!existingIds.has(record.id)){state.bestiary.push(record);existingIds.add(record.id)}
+    }
+   }
+  }
   save();render();return imported;
  },
  exportBackup:()=>{
