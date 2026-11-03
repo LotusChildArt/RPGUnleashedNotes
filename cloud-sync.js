@@ -226,7 +226,7 @@ async function refreshBoardActivity(force=false){
  if(!roomId||owlRole!=='GM'||!linkedCampaign)return;
  const {data,error}=await db.rpc('get_player_snapshot',{requested_room_id:roomId});
  if(error||!data||data.id!==linkedCampaign)return;
- const revision=JSON.stringify([data.acceptedQuestIds||[],data.partyQuestNotes||[],data.sharedNotes||[]]);
+ const revision=JSON.stringify([data.acceptedQuestIds||[],data.sharedNotes||[]]);
  if(force||revision!==lastBoardRevision){lastBoardRevision=revision;bridge.applyBoardUpdates(data)}
 }
 window.rpgRefreshSharedActivity=()=>refreshBoardActivity(true);
@@ -264,14 +264,6 @@ window.rpgAcceptBoardQuest=async questId=>{
  if(error)throw Error(error.message);
  if(data!==true)throw Error('This posting is no longer available.');
  await refreshPlayer();
-};
-window.rpgAddPartyQuestNote=async (questId,author,body)=>{
- if(!roomId||!(owlRole==='PLAYER'||owlRole==='GM'))throw Error('Open inside an Owlbear room to post party notes.');
- const {data,error}=await db.rpc('add_quest_party_note',{requested_room_id:roomId,requested_quest_id:questId,note_author:author,note_body:body});
- if(error)throw Error(error.message);
- if(data!==true)throw Error('The quest must be accepted, and the note must be between 1 and 1500 characters.');
- if(owlRole==='PLAYER')await refreshPlayer();
- else await refreshBoardActivity();
 };
 
 async function refreshPlayer(){
