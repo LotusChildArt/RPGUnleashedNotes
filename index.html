@@ -124,8 +124,8 @@ $('editCampaignDetails').onclick=()=>{const c=current();if(!c)return;$('editCamp
  $('toggleAddPerson').setAttribute('aria-expanded','false');
  setPeopleSubtab('people');
 }
-function tab(name){if(name==='people')resetPeopleList();if(name==='places'&&!selectedPlaceId)showPlaceIndex();document.querySelectorAll('[data-camp-tab]').forEach(b=>b.classList.toggle('active',b.dataset.campTab===name));document.querySelectorAll('.camp-pane').forEach(x=>x.classList.toggle('hidden',x.id!==name))}
-document.querySelectorAll('[data-camp-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.campTab));
+function tab(name){if(name==='places'&&!selectedPlaceId)showPlaceIndex();document.querySelectorAll('[data-camp-tab]').forEach(b=>b.classList.toggle('active',b.dataset.campTab===name));document.querySelectorAll('.camp-pane').forEach(x=>x.classList.toggle('hidden',x.id!==name))}
+document.querySelectorAll('[data-camp-tab]').forEach(b=>b.onclick=()=>{if(b.dataset.campTab==='people')resetPeopleList();tab(b.dataset.campTab)});
 function openCampaign(id){$('questMainPanel').classList.remove('hidden');resetPeopleList();selectedQuestId=null;$('questList').classList.remove('hidden');$('questDetail').classList.add('hidden');if(!state.campaigns.some(c=>c.id===id))return;state.activeCampaignId=id;$('campaignPicker').classList.add('hidden');$('campaignWorkspace').classList.remove('hidden');$('questEditor').classList.remove('hidden');toggleQuest(false);selectedPlaceId=null;selectedPersonId=null;tab('quests');save();render();$('questEditor').classList.toggle('hidden',state.role==='player');if(owlAccessRole==='GM')window.rpgRefreshSharedActivity?.()}
 $('newCampaign').onclick=()=>{const n=prompt('Campaign name');if(!n?.trim())return;const gm=prompt('GM name (optional)')||'';const c=blank(n.trim(),gm.trim());state.campaigns.push(c);openCampaign(c.id)};
 $('toggleAddPlace').onclick=()=>{$('addPlaceFields').classList.remove('hidden');$('placeIndex').classList.add('hidden')};$('cancelPlaceCreate').onclick=()=>{$('addPlaceFields').classList.add('hidden');$('placeIndex').classList.remove('hidden')};
