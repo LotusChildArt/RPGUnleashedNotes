@@ -98,10 +98,12 @@ async function publish(){
   try{
    const created=await request('create',campaign.id,key,{roomId,payload:campaign});
    credentials[campaign.id]={key,name:campaign.name,createdAt:new Date().toISOString()};
-   saveCredentials();
    linkedCampaign=campaign.id;linkedVersion=created.updatedAt;blocked=false;
-   downloadRecovery(campaign.id);
-   status();msg('Campaign published. Recovery file downloaded; keep it private and backed up.');
+   let savedLocally=true,downloaded=true;
+   try{saveCredentials()}catch{savedLocally=false}
+   try{downloadRecovery(campaign.id)}catch{downloaded=false}
+   status();
+   msg(savedLocally&&downloaded?'Campaign published. Recovery file downloaded; keep it private and backed up.':'CAMPAIGN PUBLISHED. Your browser could not safely save or download the recovery key. Use Download Recovery File NOW before closing the page.');
   }catch(error){msg('Could not publish: '+error.message)}
   return;
  }
@@ -192,7 +194,9 @@ async function rotate(){
  try{
   await request('rotate',id,oldKey,{newKey});
   credentials[id].key=newKey;credentials[id].createdAt=new Date().toISOString();
-  saveCredentials();downloadRecovery(id);msg('Recovery key replaced; the old key is revoked. Store the new recovery file safely.');
+  let safe=true;try{saveCredentials()}catch{safe=false}
+  try{downloadRecovery(id)}catch{safe=false}
+  msg(safe?'Recovery key replaced; old key revoked. Keep the new recovery file safely.':'NEW KEY IS ACTIVE, but automatic saving or download failed. Use Download Recovery File NOW before leaving this page.');
  }catch(error){msg('Key rotation failed; the previous key is unchanged: '+error.message)}
 }
 async function refreshPlayer(){
@@ -229,8 +233,9 @@ function wire(){
   try{
    const backup=JSON.parse(await file.text());
    if(!confirm('Import campaigns from '+file.name+'? Local duplicates will ask before replacement.'))return;
-   bridge.exportBackup();const count=bridge.importBackup(backup);
-   msg(count+' campaign(s) imported locally. Publish or link the desired campaign when ready.');
+   bridge.exportBackup();if(linkedCampaign)blocked=true;
+   const count=bridge.importBackup(backup);
+   msg(count+' campaign(s) imported locally. Automatic cloud writes are paused until you intentionally Publish / Link the campaign again.');
   }catch(error){msg('Campaign backup import failed: '+error.message)}
   finally{event.target.value=''}
  });
