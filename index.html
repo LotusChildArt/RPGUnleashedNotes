@@ -139,7 +139,7 @@ let preferences={};try{preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{
 function persistPreferences(){try{localStorage.setItem(PREF_KEY,JSON.stringify({theme:state.theme,view:state.view}))}catch(e){console.warn('Unable to save appearance preferences',e)}window.rpgSaveOwlPreferences?.(state.theme)}
 const embedded=window.self!==window.top;let owlAccessRole=embedded?'UNKNOWN':'LOCAL';
 const state={theme:(preferences.theme==='dark'||preferences.theme==='light')?preferences.theme:((stored?.theme==='dark')?'dark':'light'),view:['auto','desktop','mobile'].includes(preferences.view)?preferences.view:(stored?.view||'auto'),role:embedded?'player':(stored?.role==='player'?'player':'gm'),campaigns:embedded?[]:(Array.isArray(stored?.campaigns)?stored.campaigns:[]),activeCampaignId:embedded?null:(stored?.activeCampaignId||null)};
-state.bestiary=Array.isArray(stored?.bestiary)?stored.bestiary:[];state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= [];c.combatants ||= []});
+state.bestiary=Array.isArray(stored?.bestiary)?stored.bestiary:[];state.bestiaryStarterImportVersion=Number(stored?.bestiaryStarterImportVersion)||0;state.campaigns.forEach(c=>{c.places ||= [];c.people ||= [];c.quests ||= [];c.entries ||= [];c.combatants ||= []});
 const expandedPlacePeople=new Set();
 let editingQuest=null, selectedQuestId=null, selectedPlaceId=null, selectedPersonId=null, lastParentChoice=null;
 function save(){if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN')return;try{const snapshot={...state,role:owlAccessRole==='GM'?'gm':state.role,version:3};localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){alert('Browser storage unavailable. Changes may not persist.')}if(owlAccessRole==='GM'&&state.role==='gm')window.rpgScheduleCloudSave?.()}
@@ -830,4 +830,4 @@ window.RPGNotesBridge={
 
 state.activeCampaignId=null;$('campaignPicker').classList.remove('hidden');$('campaignWorkspace').classList.add('hidden');
 render();
-</script><script src="timekeeping.js"></script><script src="bestiary.js"></script><script type="module" src="npc-battlefield.js"></script><script type="module" src="cloud-sync.js"></script></body></html>
+</script><script src="timekeeping.js"></script><script src="bestiary-starters.js"></script><script src="bestiary.js"></script><script type="module" src="npc-battlefield.js"></script><script type="module" src="cloud-sync.js"></script></body></html>
