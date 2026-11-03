@@ -47,6 +47,10 @@ body.player-view #relationshipsSection #reviewRelationships,body.player-view #re
 body.owlbear-player .mode-switch,body.owlbear-player #cloudPanel,body.owlbear-player .note-controls,body.owlbear-player #cycleQuestStatus,body.owlbear-player #notes [data-delete-entry],body.owlbear-player [id$='Toggle'],body.player-view #cloudPanel,body.player-view #newCampaign,body.player-view #campaignPickerHome,body.player-view #editCampaignDetails,body.player-view #deleteQuest,body.player-view #notes [data-delete-entry],body.owlbear-player #togglePlaceNote,body.owlbear-player #placeNoteFields,body.player-view #togglePlaceNote,body.player-view #placeNoteFields{display:none!important}
 .shared-notes-compact{margin:12px 0}.shared-notes-compact .place-add-toggle{font-size:14px;padding:10px 12px}.shared-notes-compact .place-note-form,.shared-notes-compact .place-form{margin-top:8px}
 .player-view .gm-private-notes{display:none!important}
+#settings .panel > .main-menu-actions,#settings .panel > #cloudPanel .actions,#settings #cloudBackupDetails .actions,#settings #campaignDetailsForm .actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;max-width:460px}
+#settings .main-menu-button,#settings #cloudPanel button,#settings #campaignDetailsForm button{display:block;width:100%;max-width:460px;min-height:48px;text-align:left;font-size:15px;border-radius:18px;padding:10px 16px}
+#settings #cloudPanel{margin-top:16px}
+#settings #cloudBackupToggle{margin-top:14px}
 </style></head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
@@ -65,8 +69,8 @@ body.owlbear-player .mode-switch,body.owlbear-player #cloudPanel,body.owlbear-pl
 <div id="cloudPanel" class="place-hub-section">
 <div class="actions"><button class="primary" id="cloudPublish">Publish / Link This Campaign</button></div>
 <p class="muted" id="cloudStatus" aria-live="polite">Checking connection…</p>
-<details id="cloudBackupDetails" class="place-hub-section" style="margin-top:14px">
-<summary style="cursor:pointer;font-weight:bold;padding:8px 0">Campaign Backup Options</summary>
+<button id="cloudBackupToggle" class="main-menu-button" type="button" aria-expanded="false" aria-controls="cloudBackupDetails">Campaign Backup Options</button>
+<div id="cloudBackupDetails" class="place-hub-section hidden" style="margin-top:14px">
 <p class="muted">The recovery file is a private access credential, not a copy of the campaign. Keep it safe: anyone with it can manage the cloud campaign.</p>
 <p class="muted">Owlbear room: <strong id="cloudRoom">Checking Owlbear…</strong></p>
 <p id="cloudLinked" class="muted">No cloud campaign linked yet.</p>
@@ -81,7 +85,7 @@ body.owlbear-player .mode-switch,body.owlbear-player #cloudPanel,body.owlbear-pl
 <button id="cloudRotate">Replace Recovery Key</button>
 </div>
 <input type="file" id="cloudRecoveryFile" accept=".json,application/json" class="hidden">
-</details>
+</div>
 </div>
 </div></section>
 </section>
@@ -147,6 +151,7 @@ document.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>showScreen(b
 function theme(){document.body.classList.toggle('player-view',state.role==='player');document.body.classList.toggle('owlbear-player',owlAccessRole==='PLAYER');document.querySelector('.mode-switch')?.classList.toggle('hidden',owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN');$('campaignView').value=state.role;document.body.classList.toggle('dark',state.theme==='dark');$('optionTheme').value=state.theme;$('campaignThemeToggle').value=state.theme;document.body.classList.toggle('force-mobile',state.view==='mobile');document.body.classList.toggle('force-desktop',state.view==='desktop');$('optionView').value=state.view}
 $('optionsGoHome').onclick=()=>showScreen('home');$('optionView').onchange=()=>{state.view=$('optionView').value;persistPreferences();save();theme()};$('campaignView').onchange=()=>{if(owlAccessRole==='PLAYER'||owlAccessRole==='UNKNOWN'){state.role='player';theme();return}state.role=$('campaignView').value;selectedPlaceId=null;selectedPersonId=null;selectedQuestId=null;expandedObjectives.clear();save();showQuestIndex();render();tab('quests')};$('optionTheme').onchange=()=>{state.theme=$('optionTheme').value;persistPreferences();save();theme()};$('campaignThemeToggle').onchange=()=>{state.theme=$('campaignThemeToggle').value;persistPreferences();save();theme()};
 function renderCampaigns(){const c=current();$('campaignList').innerHTML=state.campaigns.map(x=>'<button class="campaign-card" data-open="'+safe(x.id)+'"><strong>'+safe(x.name)+'</strong><div class="secondary">'+x.places.length+' places · '+x.people.length+' people</div></button>').join('')||'<p class="muted">No campaigns created.</p>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openCampaign(b.dataset.open));$('campaignScreenHeading').textContent=c?.name||'Campaigns';$('campaignTitle').textContent=c?.gm?'GM: '+c.gm:'GM: Not set';if(c){$('campaignThemeToggle').value=state.theme}}
+$('cloudBackupToggle').onclick=()=>{const panel=$('cloudBackupDetails'),expanded=panel.classList.toggle('hidden')===false;$('cloudBackupToggle').setAttribute('aria-expanded',String(expanded))};
 $('editCampaignDetails').onclick=()=>{const c=current();if(!c)return;$('editCampaignName').value=c.name;$('editCampaignGM').value=c.gm||'';$('campaignDetailsForm').classList.toggle('hidden')};$('cancelCampaignDetails').onclick=()=>$('campaignDetailsForm').classList.add('hidden');$('saveCampaignDetails').onclick=()=>{const c=current();if(!c)return;const name=$('editCampaignName').value.trim();if(!name)return alert('Enter a campaign name.');c.name=name;c.gm=$('editCampaignGM').value.trim();$('campaignDetailsForm').classList.add('hidden');save();renderCampaigns()};$('campaignPickerHome').onclick=()=>showScreen('home');$('campaignGoHome').onclick=()=>showScreen('home');$('campaignGoList').onclick=()=>showScreen('campaign');function resetPeopleList(){
  selectedPersonId=null;peopleSubtab='people';
  $('addPersonFields').classList.add('hidden');
