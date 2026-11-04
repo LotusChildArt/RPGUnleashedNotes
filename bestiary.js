@@ -81,11 +81,11 @@ function ensure(){
 }
 function parsedDrive(item){
  if(item.drive)return String(item.drive);
- return String(item.tactics||'').match(/^Drive:\\s*([^\\n]*)/)?.[1]?.trim()||'';
+ return String(item.tactics||'').match(/^Drive:\s*([^\n]*)/)?.[1]?.trim()||'';
 }
 function parsedTactics(item){
  const tactics=String(item.tactics||'');
- return tactics.replace(/^Drive:\\s*[^\\n]*(?:\\n|$)/,'').trim();
+ return tactics.replace(/^Drive:\s*[^\n]*(?:\n|$)/,'').trim();
 }
 function npcInput(key,label,item,type='text',extra=''){
  const value=item[key]??'',id='npcField_'+key;
@@ -96,7 +96,7 @@ function npcTextarea(key,label,value,rows=2){
  return '<div class="field"><label for="npcField_'+key+'">'+escapeHTML(label)+'</label><textarea id="npcField_'+key+'" data-npc-field="'+key+'" rows="'+rows+'">'+escapeHTML(value??'')+'</textarea></div>';
 }
 function fieldMarkup(item){
- const x={...item,drive:parsedDrive(item),tactics:parsedTactics(item)};
+ const x={...item,numberAttacks:item.numberAttacks??1,drive:parsedDrive(item),tactics:parsedTactics(item)};
  return '<div class="npc-creator">'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('name','Name',x)+npcInput('role','Role',x)+npcInput('level','Level',x,'number','min="0" step="1"')+'</div>'+
   '<div class="npc-editor-row npc-editor-four">'+['bod','dex','mnd','cha'].map(k=>npcInput(k,k.toUpperCase(),x,'number','step="1"')).join('')+'</div>'+
