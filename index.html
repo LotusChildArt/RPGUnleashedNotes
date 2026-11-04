@@ -137,6 +137,23 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 #gmTools .npc-weapon-display:has(.npc-weapon-choice input:checked){border-color:var(--accent,#698ec7);background:rgba(110,150,200,.09)}
 #gmTools .npc-popup-actions{flex-wrap:wrap}
 </style>
+<style>
+/* Structured NPC feat descriptions and visibly exclusive loadout choices. */
+.npc-info-dialog:has(.npc-feat-group){width:min(94vw,630px)}
+.npc-info-dialog .npc-info-text:has(.npc-feat-group){max-height:58vh}
+.npc-feat-legend{font-size:12px;line-height:1.5;margin:0 0 12px;opacity:.85}
+.npc-feat-group{border:1px solid var(--edge,#888);border-radius:9px;padding:8px;margin:0 0 10px}
+.npc-feat-option{display:grid;gap:6px}
+.npc-feat-row{padding:7px 8px;border-radius:6px;background:rgba(128,128,128,.09);overflow-wrap:anywhere}
+.npc-feat-meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between}
+.npc-feat-meta strong{font-size:13px}
+.npc-feat-rank{font-size:11px;border:1px solid var(--edge,#888);border-radius:5px;padding:2px 6px;font-weight:600}
+.npc-feat-row p{margin:5px 0 0;font-size:12px;line-height:1.5}
+.npc-feat-or{text-align:center;display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 2px;font-weight:800;font-size:11px;letter-spacing:.03em}
+.npc-feat-or:before,.npc-feat-or:after{content:'';height:1px;flex:1;background:var(--edge,#888)}
+.npc-feat-or span{border:1px dashed var(--edge,#888);border-radius:15px;padding:4px 8px;white-space:nowrap}
+.npc-feat-and{text-align:center;font-weight:700;font-size:11px;margin:2px 0}
+</style>
 </head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
