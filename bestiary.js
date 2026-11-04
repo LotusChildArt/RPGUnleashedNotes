@@ -87,6 +87,52 @@ function parsedTactics(item){
  const tactics=String(item.tactics||'');
  return tactics.replace(/^Drive:\s*[^\n]*(?:\n|$)/,'').trim();
 }
+
+function weaponEntries(record){
+ if(Array.isArray(record.weaponEntries))return record.weaponEntries;
+ const raw=String(record.weapons||'').trim();
+ if(!raw)return [];
+ return raw.replace(/^Weapon\s*\(\d+\):\s*/i,'').split(/\s*\|\s*|\n+/).map(part=>{
+  const source=part.trim();if(!source)return null;
+  const dmg=source.match(/\b\d+d\d+(?:[+-]\d+)?(?:\/[+-]?\d+)?\b/i);
+  const name=dmg?source.slice(0,dmg.index).trim():source.replace(/\s*\([^)]*\)\s*$/,'').trim();
+  let properties=dmg?source.slice(dmg.index+dmg[0].length).trim():'';
+  const match=properties.match(/\((\d+)\s+([^)]*)\)/i);
+  if(match)properties=properties.replace(match[0],'').trim();
+  return {id:uid(),name:name||'Weapon',damage:dmg?.[0]||'',properties,ammo:match?Number(match[1]):null,ammoType:match?.[2]?.trim()||''};
+ }).filter(Boolean);
+}
+function weaponRowMarkup(w={}){
+ const field=(label,key,type='text',extra='')=>'<label><span>'+label+'</span><input data-weapon-field="'+key+'" type="'+type+'" '+extra+' value="'+escapeHTML(w[key]??'')+'"></label>';
+ return '<div class="npc-weapon-edit-row" data-weapon-row="'+escapeHTML(w.id||uid())+'">'+
+  field('Weapon','name')+field('Damage','damage')+field('Properties','properties')+
+  field('Ammo','ammo','number','min="0" step="1" placeholder="—"')+field('Ammo type','ammoType','text','placeholder="bolts"')+
+  '<button type="button" class="small" data-weapon-remove aria-label="Remove weapon">×</button></div>';
+}
+function attachWeaponEditor(root){
+ root.querySelector('[data-add-weapon]')?.addEventListener('click',()=>root.querySelector('[data-weapon-editor]').insertAdjacentHTML('beforeend',weaponRowMarkup()));
+ root.querySelector('[data-weapon-editor]')?.addEventListener('click',event=>{
+  if(event.target.closest('[data-weapon-remove]'))event.target.closest('[data-weapon-row]')?.remove();
+ });
+}
+function readWeaponEntries(root){
+ return [...root.querySelectorAll('[data-weapon-row]')].map(row=>{
+  const get=k=>row.querySelector('[data-weapon-field="'+k+'"]')?.value.trim()||'';
+  const name=get('name'),damage=get('damage'),properties=get('properties'),ammoRaw=get('ammo'),ammoType=get('ammoType');
+  if(!name&&!damage&&!properties&&!ammoRaw&&!ammoType)return null;
+  if(!name)throw Error('Every weapon needs a name.');
+  if(ammoRaw&&!/^\d+$/.test(ammoRaw))throw Error('Ammo must be a nonnegative whole number.');
+  const ammo=ammoRaw===''?null:Number(ammoRaw);
+  if(ammo!==null&&!Number.isSafeInteger(ammo))throw Error('Ammo must be a safe whole number.');
+  return {id:row.dataset.weaponRow||uid(),name,damage,properties,ammo,ammoType};
+ }).filter(Boolean);
+}
+function weaponSummary(w){
+ const tail=[w.properties];
+ if(w.ammo!=null)tail.push('('+w.ammo+' '+(w.ammoType||'ammo')+')');
+ return w.name+': '+(w.damage||'—')+(tail.filter(Boolean).length?' | '+tail.filter(Boolean).join(' · '):'');
+}
+
 function npcInput(key,label,item,type='text',extra=''){
  const value=item[key]??'',id='npcField_'+key;
  return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+'</label>'+
@@ -104,7 +150,7 @@ function fieldMarkup(item){
   '<div class="npc-editor-row npc-editor-three">'+npcInput('manaMax','Max Mana',x,'number','min="0" step="1"')+npcInput('drArmor','Armor DR',x,'number','step="1"')+npcInput('drNatural','Natural DR',x,'number','step="1"')+'</div>'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('drMagic','Magic DR',x,'number','step="1"')+npcInput('attack','ATK',x)+npcInput('defense','DEF',x)+'</div>'+
   '<div class="npc-editor-row npc-editor-two">'+npcInput('numberAttacks','Number of Attacks',x,'number','min="1" step="1"')+npcInput('tokenImage','Token image URL (optional)',x,'url')+'</div>'+
-  npcTextarea('weapons','Weapon',x.weapons)+npcTextarea('armor','Armor',x.armor)+npcTextarea('inventory','Inventory',x.inventory)+
+  '<div class="npc-weapon-editor-wrap"><div class="npc-weapon-heading"><strong>Weapons</strong><button type="button" class="small" data-add-weapon>+ Weapon</button></div><div data-weapon-editor>'+weaponEntries(x).map(weaponRowMarkup).join('')+'</div></div>'+npcTextarea('armor','Armor',x.armor)+npcTextarea('inventory','Inventory',x.inventory)+
   npcTextarea('tactics','Tactics',x.tactics,3)+npcTextarea('drive','Drive',x.drive,2)+
   '</div>';
 }
@@ -123,6 +169,8 @@ function formData(root,previous){
  // Keep the legacy Drive header out of tactics when the compact editor saves.
  if(typeof data.tactics==='string')data.tactics=data.tactics.trim();
  if(typeof data.drive==='string')data.drive=data.drive.trim();
+ data.weaponEntries=readWeaponEntries(root);
+ data.weapons=data.weaponEntries.map(weaponSummary).join('\n');
  return data;
 }
 function setPane(to){
@@ -144,7 +192,7 @@ function editMaster(id){
  if(id&&!master)return;
  hideEditors();editMasterId=id||null;
  $('npcBestiaryEditTitle').textContent=master?'Edit Bestiary Entry':'Create Bestiary Entry';
- $('npcBestiaryFields').innerHTML=fieldMarkup(master||defaultRecord());
+ $('npcBestiaryFields').innerHTML=fieldMarkup(master||defaultRecord());attachWeaponEditor($('npcBestiaryFields'));
  $('npcBestiaryList').parentElement.classList.add('hidden');
  $('npcBestiaryEditor').classList.remove('hidden');
  setPane('bestiary');
@@ -155,7 +203,7 @@ async function editCombat(id){
  const c=ensure(),instance=c?.combatants.find(x=>x.id===id);
  if(!instance)return;
  hideEditors();editCombatId=id;
- $('npcCombatFields').innerHTML=fieldMarkup(instance);
+ $('npcCombatFields').innerHTML=fieldMarkup(instance);attachWeaponEditor($('npcCombatFields'));
  $('npcCombatFeedback').textContent='';
  $('npcCombatantList').parentElement.classList.add('hidden');
  $('npcCombatEditor').classList.remove('hidden');
@@ -210,7 +258,7 @@ function createInstance(master,existing){
  const c=ensure();if(!c)return null;
  const n=c.combatants.filter(x=>x.templateId===master.id).length+1;
  const item=structuredClone(master);
- item.id=uid();item.templateId=master.id;item.name=existing?master.name:master.name+' #'+n;item.tokenLinks={};item.createdAt=Date.now();
+ item.id=uid();item.templateId=master.id;item.name=existing?master.name:master.name+' #'+n;item.tokenLinks={};item.createdAt=Date.now();item.weaponEntries=weaponEntries(master).map(w=>({...w,id:uid()}));
  c.combatants.push(item);save();return item;
 }
 async function spawnInstance(item){
