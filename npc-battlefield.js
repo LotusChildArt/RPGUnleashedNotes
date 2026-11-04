@@ -37,9 +37,10 @@ function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId
 function buildNPCNameLabel(combatant,token,bounds){
  const text=String(combatant.name||'NPC').replace(/ #[0-9]+$/,'').trim()||'NPC';
  return buildLabel().plainText(text).fontSize(11).fontWeight(700)
-  .textAlign('CENTER').fillColor('#ffffff').backgroundColor('#151515')
-  .backgroundOpacity(0).padding(0).cornerRadius(0)
-  .position({x:bounds.center.x,y:bounds.max.y-Math.max(12,bounds.height*.11)})
+  .textAlign('CENTER').fillColor('#ffffff')
+  .strokeColor('#000000').strokeOpacity(1).strokeWidth(2)
+  .backgroundColor('#151515').backgroundOpacity(0).padding(0).cornerRadius(0)
+  .position({x:bounds.center.x,y:bounds.max.y-Math.max(12,bounds.height*.11)+4})
   .layer('ATTACHMENT').attachedTo(token.id).locked(true).disableHit(true)
   .metadata(metadata(combatant,'npc-name')).build();
 }
