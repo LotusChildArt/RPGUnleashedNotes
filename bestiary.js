@@ -320,13 +320,100 @@ function combatHTML(x){
   '<button class="npc-remove" data-combat-delete="'+id+'" title="Remove combatant and token" aria-label="Remove '+escapeHTML(x.name)+'">−</button></div>'+
   '</article>';
 }
+
+const npcFeatDescriptions={
+ 'light melee proficiency':{
+  base:'Proficiency with Light Melee weapons; removes the usual −5 penalty.',
+  rank:'Each rank adds +2 to attacks and one additional Light Melee strike during a full-round attack.'
+ },
+ 'medium melee proficiency':{
+  base:'Proficiency with Medium Melee weapons; removes the usual −5 penalty.',
+  rank:'Each rank adds +2 to attacks and +2 damage with Medium Melee weapons.'
+ },
+ 'ranged proficiency':{
+  base:'Proficiency with ranged weapons; removes the usual −5 penalty. Does not apply to firearms.',
+  rank:'Each rank adds +2 to ranged attacks and +2 damage.'
+ },
+ 'thief':{
+  base:'+2 to Stealth, Handle Device, Finesse, and Detect checks.',
+  rank:'Each rank increases these bonuses by 2 and allows one retry of a failed Thief check per day (not on critical failure).'
+ },
+ 'squirrelly':{
+  base:'+2 to the next DEX defense check after moving at least 15 ft on your turn.',
+  rank:'Each rank increases that defense bonus by 2 and permits 5 ft of free movement after a sufficiently successful DEX defense.'
+ },
+ 'bully':{
+  base:'+2 on taunt or demoralize checks. Affected targets take −2 on opposed checks against you and −1 against others.',
+  rank:'Each rank adds +2 to Bully checks and increases the affected target’s penalties by 1.'
+ },
+ 'unbreakable':{
+  base:'+2 to the next BOD defense check if you moved no more than 5 ft on your turn.',
+  rank:'Each rank increases this defense bonus by 2 and gives 1 Natural DR while its defense bonus applies.'
+ },
+ 'improved unarmed':{
+  base:'Two unarmed strikes as a full-round attack; unarmed attacks do not provoke an attack of opportunity. May deal normal instead of nonlethal damage.',
+  rank:'Each rank adds +2 to attacks with Improved Unarmed and one additional strike during its full-round attack.'
+ },
+ 'sneak attack':{
+  base:'Melee sneak attack damage multiplier increases to ×4. Requires a DEX attack; only the first attack each round can be a sneak attack.',
+  rank:'Each rank adds +1 to the Sneak Attack damage multiplier.'
+ },
+ 'bullseye':{
+  base:'Ranged sneak attack multiplier increases to ×3 with proficient ranged weapons.',
+  rank:'Each rank adds +1 to the ranged sneak attack multiplier.'
+ },
+ 'combo breaker':{
+  base:'On a critical defense, the counterattack deals ×2 damage and immediately ends the attacker’s turn.',
+  rank:'Each rank adds +1 to the critical counterattack damage multiplier.'
+ },
+ 'spontaneous spellcaster':{
+  base:'CHA-based Arcane caster with a mana pool, Caster Points, and Instinctual Caster; learns spells directly by spending Caster Points.',
+  rank:'Additional ranks expand access to spell subschools as described in the caster feat.'
+ },
+ 'bonus attack':{
+  base:'An extra basic attack, reload, or Rank 0 spell action, following the RPG Unleashed bonus-attack rules.',
+  rank:''
+ }
+};
+function npcFeatDefinition(name){
+ const key=String(name||'').replace(/[¹²³⁴⁵⁶⁷⁸⁹⁰]/g,'').toLowerCase()
+  .replace(/\bmed\.\s*melee\b/,'medium melee')
+  .replace(/\blight melee prof\b/,'light melee proficiency')
+  .replace(/\branged prof\b/,'ranged proficiency')
+  .replace(/!$/,'').trim();
+ return npcFeatDescriptions[key]||null;
+}
+function npcFeatDetails(text){
+ const groups=String(text||'').split(/\s*\|\s*|\n+/).map(x=>x.trim()).filter(Boolean);
+ if(!groups.length)return '<p class="muted">No feats listed.</p>';
+ const renderFeat=source=>{
+  const match=source.trim().match(/^(.*?)(?:\s+(R\d+|\d+))?$/i);
+  const name=match?.[1]?.trim()||source.trim(),level=match?.[2]||'';
+  const desc=npcFeatDefinition(name);
+  const rank= /^R\d+$/i.test(level)?'Rank '+level.slice(1):level?'Count '+level:'Not specified';
+  // A number without R is the recorded count, not a feat rank.
+  const description=desc?(desc.base+(Number(level.replace(/^R/i,''))>0&&/^R/i.test(level)&&desc.rank?' '+desc.rank:'')):'Description not found in the Feats reference.';
+  return '<div class="npc-feat-row"><div class="npc-feat-meta"><strong>'+escapeHTML(name)+'</strong><span class="npc-feat-rank">'+escapeHTML(rank)+'</span></div>'+
+    '<p>'+escapeHTML(description)+'</p></div>';
+ };
+ const blocks=groups.map(segment=>{
+  const options=segment.split(/\s+or\s+/i).map(x=>x.trim()).filter(Boolean);
+  const markup=options.map(option=>{
+   const together=option.split(/\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
+   return '<div class="npc-feat-option">'+together.map(renderFeat).join('<div class="npc-feat-and">AND — both feats</div>')+'</div>';
+  }).join('<div class="npc-feat-or"><span>OR — choose one option</span></div>');
+  return '<div class="npc-feat-group">'+markup+'</div>';
+ }).join('');
+ return '<p class="npc-feat-legend"><strong>OR</strong> = choose one option. <strong>AND</strong> = both feats together. A number shown as <strong>Count</strong> is not a feat rank.</p>'+blocks;
+}
 function showCombatPopup(combatant,kind){
  const dialog=$('npcInfoDialog');
  const heading=$('npcInfoTitle'),content=$('npcInfoText');
  if(!dialog)return;
  const titles={drive:'Drive',tactics:'Tactics',feats:'Feats'};
  heading.textContent=(titles[kind]||'Details')+' — '+combatant.name;
- content.textContent=(kind==='drive'?parsedDrive(combatant):kind==='feats'?combatant.feats:parsedTactics(combatant))||'Not specified.';
+ if(kind==='feats')content.innerHTML=npcFeatDetails(combatant.feats);
+ else content.textContent=(kind==='drive'?parsedDrive(combatant):parsedTactics(combatant))||'Not specified.';
  if(dialog.open)dialog.close();
  dialog.showModal();
 }
