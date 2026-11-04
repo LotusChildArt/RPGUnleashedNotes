@@ -33,7 +33,7 @@ id:'rpg-outlaws-gang-member-3',name:'Gang Member',role:'Outlaws',race:'',level:3
 attack:'BOD 12 / DEX 12',defense:'BOD 12 (14²) / DEX 10',
 weapons:'Weapon (1): Morningstar 1d8+2/+5 (sw) | Brass Knuckles 1d4 + Unarmed',
 armor:'Full Leather 2 DR / 2 DEF / 0 DEX pen',
-feats:'Light Melee Prof R0 + Improved Unarmed³ R1 or Med. Melee Proficiency R1\nBully¹ R1 | Unbreakable² R0 | Combo Breaker R0 | Bonus Attack 1',
+feats:'Light Melee Prof R0 + Improved Unarmed³ R1 or Med. Melee Proficiency⁴ R1\nBully¹ R1 | Unbreakable² R0 | Combo Breaker⁶ R0 | Bonus Attack⁵ 1',
 tactics:'Drive: Don’t let no one get in my way.\nTaunt first to trigger Bully¹. Close distance quickly and engage the largest apparent threat. Once adjacent, move no more than 5 feet to trigger Unbreakable². If using Improved Unarmed³, remain in place and make 3 attacks as an FRA. If using Med. Melee⁴ make attack with +2 to hit and damage. Use Bonus Attack⁵ to capitalize on melee damage. Try to crit defend to trigger Combo Breaker⁶ and end enemy’s turn.',
 notes:'Attribute values in parentheses: BOD (3), DEX (3), MND (2), CHA (2).\nSkill Bonuses: +4 to Intimidate (CHA/BOD) to Taunt, +1 additional stack of Taunt | +2 BOD DEF when moved 5 ft or less | +2 to hit, FRA 3 attacks with Unarmed | +2 to hit and damage with Medium Melee weapons'
 },
