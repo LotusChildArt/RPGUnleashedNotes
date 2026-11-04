@@ -175,7 +175,8 @@ function attachWeaponEditor(root){
   if(event.target.closest('[data-weapon-remove]'))event.target.closest('[data-weapon-row]')?.remove();
  });
 }
-function readWeaponEntries(root){
+function readWeaponEntries(root,previous){
+ const prior=new Map(weaponEntries(previous).map(w=>[w.id,w]));
  return [...root.querySelectorAll('[data-weapon-row]')].map(row=>{
   const get=k=>row.querySelector('[data-weapon-field="'+k+'"]')?.value.trim()||'';
   const name=get('name'),damage=get('damage'),properties=get('properties'),ammoRaw=get('ammo'),ammoType=get('ammoType');
@@ -184,7 +185,8 @@ function readWeaponEntries(root){
   if(ammoRaw&&!/^\d+$/.test(ammoRaw))throw Error('Ammo must be a nonnegative whole number.');
   const ammo=ammoRaw===''?null:Number(ammoRaw);
   if(ammo!==null&&!Number.isSafeInteger(ammo))throw Error('Ammo must be a safe whole number.');
-  return {id:row.dataset.weaponRow||uid(),name,damage,properties,ammo,ammoType};
+  const id=row.dataset.weaponRow||uid();
+  return {id,name,damage,properties,ammo,ammoType,selected:prior.get(id)?.selected===true};
  }).filter(Boolean);
 }
 function weaponSummary(w){
@@ -229,7 +231,7 @@ function formData(root,previous){
  // Keep the legacy Drive header out of tactics when the compact editor saves.
  if(typeof data.tactics==='string')data.tactics=data.tactics.trim();
  if(typeof data.drive==='string')data.drive=data.drive.trim();
- data.weaponEntries=readWeaponEntries(root);
+ data.weaponEntries=readWeaponEntries(root,previous);
  data.weapons=data.weaponEntries.map(weaponSummary).join('\n');
  return data;
 }
@@ -285,7 +287,10 @@ function combatHTML(x){
 
  const weaponBlocks=weaponEntries(x).map((w,index)=>{
   const ammo=w.ammo!==null&&w.ammo!==undefined;
-  return '<div class="npc-weapon-display"><div class="npc-weapon-stats"><strong>'+escapeHTML(w.name||'Weapon')+':</strong> <span>'+escapeHTML(w.damage||'—')+'</span>'+
+  return '<div class="npc-weapon-display"><label class="npc-weapon-choice" title="Select weapon for this combatant">'+
+    '<input type="checkbox" data-weapon-select="'+id+'" data-weapon-index="'+index+'" '+(w.selected===true?'checked':'')+
+    ' aria-label="Equip '+escapeHTML(w.name||'Weapon')+' for '+escapeHTML(x.name)+'"></label>'+
+    '<div class="npc-weapon-stats"><strong>'+escapeHTML(w.name||'Weapon')+':</strong> <span>'+escapeHTML(w.damage||'—')+'</span>'+
     (w.properties?' <span class="npc-weapon-props">| '+escapeHTML(w.properties)+'</span>':'')+
     (ammo?' <span class="npc-weapon-sep">|</span>':'')+'</div>'+
     (ammo?'<label class="npc-ammo-counter"><span>'+escapeHTML(w.ammoType||'Ammo')+'</span>'+
@@ -309,6 +314,7 @@ function combatHTML(x){
   '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+info('Armor',x.armor)+info('Inventory',x.inventory)+'</div>'+
   '<div class="npc-weapon-list"><strong class="npc-weapon-list-title">Weapons</strong>'+(weaponBlocks||'<span class="muted">None</span>')+'</div>'+
   '<div class="npc-combat-bottom"><div class="npc-popup-actions">'+
+  '<button data-combat-popup="feats" data-combat-id="'+id+'">Feats</button>'+
   '<button data-combat-popup="tactics" data-combat-id="'+id+'">Tactics</button>'+
   '<button data-combat-popup="drive" data-combat-id="'+id+'">Drive</button></div>'+
   '<button class="npc-remove" data-combat-delete="'+id+'" title="Remove combatant and token" aria-label="Remove '+escapeHTML(x.name)+'">−</button></div>'+
@@ -318,9 +324,9 @@ function showCombatPopup(combatant,kind){
  const dialog=$('npcInfoDialog');
  const heading=$('npcInfoTitle'),content=$('npcInfoText');
  if(!dialog)return;
- const isDrive=kind==='drive';
- heading.textContent=(isDrive?'Drive':'Tactics')+' — '+combatant.name;
- content.textContent=(isDrive?parsedDrive(combatant):parsedTactics(combatant))||'Not specified.';
+ const titles={drive:'Drive',tactics:'Tactics',feats:'Feats'};
+ heading.textContent=(titles[kind]||'Details')+' — '+combatant.name;
+ content.textContent=(kind==='drive'?parsedDrive(combatant):kind==='feats'?combatant.feats:parsedTactics(combatant))||'Not specified.';
  if(dialog.open)dialog.close();
  dialog.showModal();
 }
@@ -328,7 +334,7 @@ function createInstance(master,existing){
  const c=ensure();if(!c)return null;
  const n=c.combatants.filter(x=>x.templateId===master.id).length+1;
  const item=structuredClone(master);
- item.id=uid();item.templateId=master.id;item.name=existing?master.name:master.name+' #'+n;item.tokenLinks={};item.createdAt=Date.now();item.weaponEntries=weaponEntries(master).map(w=>({...w,id:uid()}));
+ item.id=uid();item.templateId=master.id;item.name=existing?master.name:master.name+' #'+n;item.tokenLinks={};item.createdAt=Date.now();item.weaponEntries=weaponEntries(master).map(w=>({...w,id:uid(),selected:false}));
  c.combatants.push(item);save();return item;
 }
 async function spawnInstance(item){
@@ -399,6 +405,15 @@ function renderBestiary(){
   if(value===''||! /^\d+$/.test(String(value))||!Number.isSafeInteger(Number(value)))return alert('Ammo must be a nonnegative whole number.');
   weapon.ammo=Number(value);save();renderBestiary();
  }
+ container.querySelectorAll('[data-weapon-select]').forEach(input=>input.onchange=()=>{
+  const combatant=c.combatants.find(x=>x.id===input.dataset.weaponSelect);
+  if(!combatant)return;
+  if(!Array.isArray(combatant.weaponEntries))combatant.weaponEntries=weaponEntries(combatant);
+  const weapon=combatant.weaponEntries[Number(input.dataset.weaponIndex)];
+  if(!weapon)return;
+  weapon.selected=input.checked;
+  save();
+ });
  container.querySelectorAll('[data-ammo-input]').forEach(input=>input.onchange=()=>{
   const combatant=c.combatants.find(x=>x.id===input.dataset.ammoInput);
   if(combatant)setAmmo(combatant,Number(input.dataset.weaponIndex),input.value.trim());
