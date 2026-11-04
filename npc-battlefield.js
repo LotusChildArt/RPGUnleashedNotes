@@ -32,9 +32,9 @@ function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId
   .locked(!!tokenId);
  if(!tokenId){
   item.name(combatant.name).textItemType('LABEL')
-   .plainText(npcName(combatant)).fontSize(11).fontWeight(700)
-   .textAlign('CENTER').textFillColor('#ffffff')
-   .textStrokeColor('#000000').textStrokeOpacity(1).textStrokeWidth(2).textPadding(0);
+   .plainText(npcName(combatant)).fontSize(14).fontWeight(700)
+   .textHeight(26).textAlign('CENTER').textAlignVertical('TOP').textFillColor('#ffffff')
+   .textStrokeColor('#000000').textStrokeOpacity(1).textStrokeWidth(2).textPadding(2);
  }
  if(tokenId)item.attachedTo(tokenId).disableHit(true);
  return item.build();
@@ -44,8 +44,8 @@ function npcName(combatant){
 }
 function npcNameText(combatant){
  // Image-native labels are rendered in screen space, not scene-scaled attachments.
- return buildLabel().plainText(npcName(combatant)).fontSize(11).fontWeight(700)
-  .textAlign('CENTER').fillColor('#ffffff')
+ return buildLabel().plainText(npcName(combatant)).fontSize(14).fontWeight(700)
+  .height(26).textAlign('CENTER').textAlignVertical('TOP').fillColor('#ffffff')
   .strokeColor('#000000').strokeOpacity(1).strokeWidth(2)
   .backgroundColor('#151515').backgroundOpacity(0).padding(0).build().text;
 }
