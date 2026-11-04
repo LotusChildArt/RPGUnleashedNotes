@@ -222,6 +222,16 @@ function combatHTML(x){
  const id=escapeHTML(x.id);
  const info=(label,value)=>'<div class="npc-combat-detail"><span>'+label+'</span><strong>'+escapeHTML(value||'—')+'</strong></div>';
  const numberAttacks=x.numberAttacks==null?'—':String(x.numberAttacks);
+
+ const weaponBlocks=weaponEntries(x).map((w,index)=>{
+  const ammo=w.ammo!==null&&w.ammo!==undefined;
+  return '<div class="npc-weapon-display"><div class="npc-weapon-stats"><strong>'+escapeHTML(w.name||'Weapon')+':</strong> <span>'+escapeHTML(w.damage||'—')+'</span>'+
+    (w.properties?' <span class="npc-weapon-props">| '+escapeHTML(w.properties)+'</span>':'')+
+    (ammo?' <span class="npc-weapon-sep">|</span>':'')+'</div>'+
+    (ammo?'<label class="npc-ammo-counter"><span>'+escapeHTML(w.ammoType||'Ammo')+'</span>'+
+     '<button type="button" data-ammo-dec="'+id+'" data-weapon-index="'+index+'" title="Use one '+escapeHTML(w.ammoType||'ammo')+'">−</button>'+
+     '<input type="number" min="0" step="1" data-ammo-input="'+id+'" data-weapon-index="'+index+'" value="'+escapeHTML(w.ammo)+'" aria-label="Ammo for '+escapeHTML(w.name)+'"></label>':'')+'</div>';
+ }).join('');
  return '<article class="entry npc-entry npc-combat-card">'+
   '<div class="npc-combat-head"><div><h3>'+escapeHTML(x.name)+'</h3><p class="subtle-info">'+escapeHTML([x.role,x.level!=null?'Level '+x.level:''].filter(Boolean).join(' · '))+' · '+(hasToken?'Token linked':'Prepared')+'</p></div>'+
   '<details class="npc-more"><summary title="Combatant options" aria-label="Combatant options">…</summary><div class="npc-more-list">'+
@@ -234,10 +244,10 @@ function combatHTML(x){
   '<label class="npc-hp-edit">HP <input data-combat-hp="'+id+'" type="number" step="1" aria-label="Current HP for '+escapeHTML(x.name)+'" value="'+escapeHTML(x.hp)+'"></label>'+
   '<span class="npc-max-hp">/ '+escapeHTML(x.hpMax)+' max</span>'+
   '<span>DR '+escapeHTML(Number(x.drArmor||0)+Number(x.drNatural||0)+Number(x.drMagic||0))+'</span>'+
-  '<span>Mana '+escapeHTML(x.mana??0)+' / '+escapeHTML(x.manaMax??0)+'</span>'+
+  '<span>Mana '+escapeHTML(x.mana??0)+' / '+escapeHTML(x.manaMax??0)+'</span>'+ '<span>Attacks '+escapeHTML(numberAttacks)+'</span>'+
   '</div>'+
-  '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+info('Attacks',numberAttacks)+
-  info('Weapon',x.weapons)+info('Armor',x.armor)+info('Inventory',x.inventory)+'</div>'+
+  '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+info('Armor',x.armor)+info('Inventory',x.inventory)+'</div>'+
+  '<div class="npc-weapon-list"><strong class="npc-weapon-list-title">Weapons</strong>'+(weaponBlocks||'<span class="muted">None</span>')+'</div>'+
   '<div class="npc-combat-bottom"><div class="npc-popup-actions">'+
   '<button data-combat-popup="tactics" data-combat-id="'+id+'">Tactics</button>'+
   '<button data-combat-popup="drive" data-combat-id="'+id+'">Drive</button></div>'+
@@ -320,6 +330,24 @@ function renderBestiary(){
    renderBestiary();
   }catch(error){showError(error);renderBestiary()}
   finally{input.disabled=false}
+ });
+
+ function setAmmo(combatant,index,value){
+  if(!gm())return;
+  if(!Array.isArray(combatant.weaponEntries))combatant.weaponEntries=weaponEntries(combatant);
+  const weapon=combatant.weaponEntries[index];if(!weapon)return;
+  if(value===''||! /^\d+$/.test(String(value))||!Number.isSafeInteger(Number(value)))return alert('Ammo must be a nonnegative whole number.');
+  weapon.ammo=Number(value);save();renderBestiary();
+ }
+ container.querySelectorAll('[data-ammo-input]').forEach(input=>input.onchange=()=>{
+  const combatant=c.combatants.find(x=>x.id===input.dataset.ammoInput);
+  if(combatant)setAmmo(combatant,Number(input.dataset.weaponIndex),input.value.trim());
+ });
+ container.querySelectorAll('[data-ammo-dec]').forEach(button=>button.onclick=()=>{
+  const combatant=c.combatants.find(x=>x.id===button.dataset.ammoDec);if(!combatant)return;
+  const weapon=weaponEntries(combatant)[Number(button.dataset.weaponIndex)];
+  if(weapon?.ammo===null||weapon?.ammo===undefined||Number(weapon.ammo)<=0)return;
+  setAmmo(combatant,Number(button.dataset.weaponIndex),Number(weapon.ammo)-1);
  });
  container.querySelectorAll('[data-combat-spawn]').forEach(b=>b.onclick=async()=>{
   const x=c.combatants.find(t=>t.id===b.dataset.combatSpawn);if(!x)return;
