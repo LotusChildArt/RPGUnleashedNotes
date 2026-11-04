@@ -18,6 +18,21 @@ const defs=[
 const defaultRecord=()=>({id:uid(),name:'',role:'',race:'',level:1,bod:0,dex:0,mnd:0,cha:0,hp:10,hpMax:10,mana:0,manaMax:0,drArmor:0,drNatural:0,drMagic:0,nl:0,speed:0,attack:'',defense:'',weapons:'',armor:'',feats:'',conditions:'',tactics:'',notes:'',tokenImage:''});
 const gm=()=>state.role==='gm'&&owlAccessRole!=='PLAYER'&&owlAccessRole!=='UNKNOWN';
 let pane='bestiary',editMasterId=null,editCombatId=null;
+let npcPullRunning=false,lastNPCPull=0;
+async function syncNPCsFromScene(force=false){
+ const engine=window.RPGNPCBattlefield;
+ if(!gm()||!engine?.ready||npcPullRunning||(!force&&Date.now()-lastNPCPull<2500))return;
+ const c=current();if(!c||!Array.isArray(c.combatants))return;
+ npcPullRunning=true;lastNPCPull=Date.now();
+ try{
+  let changed=false;
+  for(const item of c.combatants)if(item.tokenLinks?.[engine.roomId]){
+   try{if(await engine.pull(item))changed=true}catch(error){console.warn('Could not read NPC token:',error)}
+  }
+  if(changed){save();renderBestiary()}
+ }finally{npcPullRunning=false}
+}
+
 function ensure(){
  state.bestiary ||= [];
  if(gm()&&state.bestiaryStarterImportVersion!==1&&Array.isArray(window.RPGStarterBestiary)){
@@ -78,8 +93,9 @@ function editMaster(id){
  $('npcBestiaryEditor').classList.remove('hidden');
  setPane('bestiary');
 }
-function editCombat(id){
+async function editCombat(id){
  if(!gm())return;
+ await syncNPCsFromScene(true);
  const c=ensure(),instance=c?.combatants.find(x=>x.id===id);
  if(!instance)return;
  hideEditors();editCombatId=id;
@@ -118,6 +134,7 @@ async function spawnInstance(item){
 function showError(error){alert(error?.message||String(error))}
 function renderBestiary(){
  const c=ensure();if(!c)return;
+ if(!$('gmTools').classList.contains('hidden'))syncNPCsFromScene();
  if(!gm())return;
  const term=$('npcBestiarySearch').value.trim().toLowerCase();
  const matches=state.bestiary.filter(x=>[x.name,x.role,x.race,x.notes].some(s=>String(s||'').toLowerCase().includes(term)));
@@ -155,10 +172,10 @@ function renderBestiary(){
  });
  container.querySelectorAll('[data-combat-edit]').forEach(b=>b.onclick=()=>editCombat(b.dataset.combatEdit));
  container.querySelectorAll('[data-combat-hp]').forEach(b=>b.onclick=async()=>{
-  const x=c.combatants.find(t=>t.id===b.dataset.combatHp);if(!x)return;
+  await syncNPCsFromScene(true);const x=c.combatants.find(t=>t.id===b.dataset.combatHp);if(!x)return;
   const response=prompt('New current HP for '+x.name+':',String(x.hp));if(response===null)return;
   const hp=Number(response);if(!Number.isInteger(hp))return alert('Enter a whole number for HP.');
-  x.hp=hp;save();renderBestiary();
+  x.hp=hp;x.npcUpdatedAt=Math.max(Date.now(),Number(x.npcUpdatedAt||0)+1);save();renderBestiary();
   try{if(window.RPGNPCBattlefield?.ready&&x.tokenLinks?.[window.RPGNPCBattlefield.roomId])await window.RPGNPCBattlefield.updateHUD(x)}catch(error){showError(error)}
  });
  container.querySelectorAll('[data-combat-spawn]').forEach(b=>b.onclick=async()=>{
@@ -213,13 +230,14 @@ $('npcCombatSave').onclick=async()=>{
  if(!gm())return;const c=ensure(),item=c?.combatants.find(x=>x.id===editCombatId);if(!item)return;
  try{
   const next=formData($('npcCombatFields'),item);
-  Object.assign(item,next);save();hideEditors();renderBestiary();
+  Object.assign(item,next);item.npcUpdatedAt=Math.max(Date.now(),Number(item.npcUpdatedAt||0)+1);save();hideEditors();renderBestiary();
   if(window.RPGNPCBattlefield?.ready&&item.tokenLinks?.[window.RPGNPCBattlefield.roomId]){
    try{await window.RPGNPCBattlefield.updateHUD(item)}catch(error){showError(error)}
   }
  }catch(error){showError(error)}
 };
 window.rpgBestiaryRender=renderBestiary;
-window.addEventListener('rpg-npc-owlbear-state',renderBestiary);
+window.addEventListener('rpg-npc-owlbear-state',()=>{renderBestiary();syncNPCsFromScene(true)});
+setInterval(()=>{if(!$('gmTools').classList.contains('hidden')&&pane==='combat')syncNPCsFromScene()},5000);
 renderBestiary();
 })();
