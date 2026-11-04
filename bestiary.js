@@ -181,6 +181,7 @@ function combatHTML(x){
   '<button data-combat-promote="'+id+'">Save as Bestiary Entry</button>'+
   (hasToken?'<button data-combat-sync="'+id+'">Refresh HUD</button>':'<button data-combat-spawn="'+id+'">Spawn Token</button>')+
   '</div></details></div>'+
+  '<div class="npc-combat-attributes">'+['BOD','DEX','MND','CHA'].map(k=>'<span>'+k+' '+escapeHTML(x[k.toLowerCase()]??'—')+'</span>').join('')+'</div>'+
   '<div class="npc-combat-vitals">'+
   '<label class="npc-hp-edit">HP <input data-combat-hp="'+id+'" type="number" step="1" aria-label="Current HP for '+escapeHTML(x.name)+'" value="'+escapeHTML(x.hp)+'"></label>'+
   '<span class="npc-max-hp">/ '+escapeHTML(x.hpMax)+' max</span>'+
