@@ -30,19 +30,24 @@ function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId
   .position(position).layer(tokenId?'ATTACHMENT':'CHARACTER')
   .metadata(tokenId?metadata(combatant,kind):{[TOKEN_KEY]:tokenTag(combatant)})
   .locked(!!tokenId);
- if(!tokenId)item.name(combatant.name);
+ if(!tokenId){
+  item.name(combatant.name).textItemType('LABEL')
+   .plainText(npcName(combatant)).fontSize(11).fontWeight(700)
+   .textAlign('CENTER').fillColor('#ffffff')
+   .strokeColor('#000000').strokeOpacity(1).strokeWidth(2).textPadding(0);
+ }
  if(tokenId)item.attachedTo(tokenId).disableHit(true);
  return item.build();
 }
-function buildNPCNameLabel(combatant,token,bounds){
- const text=String(combatant.name||'NPC').replace(/ #[0-9]+$/,'').trim()||'NPC';
- return buildLabel().plainText(text).fontSize(11).fontWeight(700)
+function npcName(combatant){
+ return String(combatant.name||'NPC').replace(/ #[0-9]+$/,'').trim()||'NPC';
+}
+function npcNameText(combatant){
+ // Image-native labels are rendered in screen space, not scene-scaled attachments.
+ return buildLabel().plainText(npcName(combatant)).fontSize(11).fontWeight(700)
   .textAlign('CENTER').fillColor('#ffffff')
   .strokeColor('#000000').strokeOpacity(1).strokeWidth(2)
-  .backgroundColor('#151515').backgroundOpacity(0).padding(0).cornerRadius(0)
-  .position({x:bounds.center.x,y:bounds.max.y-Math.max(12,bounds.height*.11)+14})
-  .layer('ATTACHMENT').attachedTo(token.id).locked(true).disableHit(true)
-  .metadata(metadata(combatant,'npc-name')).build();
+  .backgroundColor('#151515').backgroundOpacity(0).padding(0).build().text;
 }
 function numberItem({combatant,tokenId,kind,value,position,width}){
  return buildText().plainText(String(value)).textType('PLAIN').width(Math.max(34,width*1.4)).height(Math.max(28,width)).padding(0)
@@ -67,12 +72,19 @@ async function updateHUD(c){
  const token=await getExistingToken(c);
  if(!token)throw Error('Token is not on the current Owlbear scene. Spawn a new one.');
  await writeTokenState(c,token.id);
+ // Refresh also migrates old floating name attachments to the token's native label.
+ await OBR.scene.items.updateItems([token.id],items=>{
+  for(const item of items){
+   item.text=npcNameText(c);
+   item.textItemType='LABEL';
+  }
+ });
  const prior=await OBR.scene.items.getItems(item=>item.metadata?.[HUD_KEY]?.combatantId===c.id&&item.metadata?.[HUD_KEY]?.roomId===roomId);
  if(prior.length)await OBR.scene.items.deleteItems(prior.map(x=>x.id));
  const bounds=await OBR.scene.items.getItemBounds([token.id]),dpi=await OBR.scene.grid.getDpi();
  const width=Math.max(115,bounds.width*1.12),height=width*40/300,gap=Math.max(3,bounds.height*.025);
  const iconWidth=Math.max(26,bounds.width*.28),iconHeight=iconWidth*63/72;
- const items=[buildNPCNameLabel(c,token,bounds)];let y=bounds.max.y+gap;
+ const items=[];let y=bounds.max.y+gap;
  const addBar=(type,current,max)=>{
   if(max<=0&&current<=0)return;
   const fraction=max>0?Math.max(0,Math.min(1,current/max)):0;
