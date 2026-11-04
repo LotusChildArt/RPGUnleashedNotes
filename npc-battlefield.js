@@ -3,16 +3,31 @@ import OBR,{buildImage,buildText} from 'https://cdn.jsdelivr.net/npm/@owlbear-ro
 const TOKEN_KEY='com.rpgunleashed.notes/npcTokenV1';
 const HUD_KEY='com.rpgunleashed.notes/npcHudV1';
 const ASSETS='https://rpgunleashedchara.onrender.com/assets/';
-const DEFAULT_TOKEN='https://rpgunleashednotes.onrender.com/icons/icon-192.png';
+const DEFAULT_TOKEN='https://rpgunleashednotes.onrender.com/assets/npc-placeholder.webp';
 let roomId=null,ready=false,spawnSequence=0;
 const asNumber=(v,defaultValue=0)=>Number.isFinite(Number(v))?Number(v):defaultValue;
 function announce(){window.dispatchEvent(new CustomEvent('rpg-npc-owlbear-state',{detail:{ready,roomId}}))}
 const metadata=(c,kind)=>({[HUD_KEY]:{combatantId:c.id,roomId,kind}});
+const snapshot=c=>({
+ name:String(c.name||'NPC'),hp:Number(c.hp)||0,hpMax:Number(c.hpMax)||0,
+ mana:Number(c.mana)||0,manaMax:Number(c.manaMax)||0,
+ drArmor:Number(c.drArmor)||0,drNatural:Number(c.drNatural)||0,
+ drMagic:Number(c.drMagic)||0,nl:Number(c.nl)||0,
+ conditions:String(c.conditions||''),
+ conditionDetails:Array.isArray(c.conditionDetails)?c.conditionDetails:[],
+ updatedAt:Number(c.npcUpdatedAt)||Date.now()
+});
+const tokenTag=c=>({combatantId:c.id,roomId,stats:snapshot(c)});
+async function writeTokenState(c,tokenId){
+ await OBR.scene.items.updateItems([tokenId],items=>{for(const item of items){
+  item.metadata||={};item.metadata[TOKEN_KEY]=tokenTag(c);
+ }});
+}
 function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId,combatant,kind}){
  const item=buildImage({width:pixelsWidth,height:pixelsHeight,url,mime:url.toLowerCase().split('?')[0].endsWith('.webp')?'image/webp':url.toLowerCase().split('?')[0].match(/\.jpe?g$/)?'image/jpeg':'image/png'},
   {dpi:pixelsWidth*dpi/worldWidth,offset:{x:pixelsWidth/2,y:pixelsHeight/2}})
   .position(position).layer(tokenId?'ATTACHMENT':'CHARACTER')
-  .metadata(tokenId?metadata(combatant,kind):{[TOKEN_KEY]:{combatantId:combatant.id,roomId}})
+  .metadata(tokenId?metadata(combatant,kind):{[TOKEN_KEY]:tokenTag(combatant)})
   .locked(!!tokenId);
  if(!tokenId)item.name(combatant.name);
  if(tokenId)item.attachedTo(tokenId).disableHit(true);
@@ -40,6 +55,7 @@ async function updateHUD(c){
  if(!await connection())throw Error('Open Notes as an Owlbear extension with an active scene.');
  const token=await getExistingToken(c);
  if(!token)throw Error('Token is not on the current Owlbear scene. Spawn a new one.');
+ await writeTokenState(c,token.id);
  const prior=await OBR.scene.items.getItems(item=>item.metadata?.[HUD_KEY]?.combatantId===c.id&&item.metadata?.[HUD_KEY]?.roomId===roomId);
  if(prior.length)await OBR.scene.items.deleteItems(prior.map(x=>x.id));
  const bounds=await OBR.scene.items.getItemBounds([token.id]),dpi=await OBR.scene.grid.getDpi();
@@ -97,7 +113,18 @@ async function remove(c){
  return true;
 }
 async function status(c){if(!await connection())return false;return !!await getExistingToken(c)}
-window.RPGNPCBattlefield={spawn,updateHUD,remove,status,get ready(){return ready},get roomId(){return roomId}};
+async function pull(c){
+ if(!await connection())return false;
+ const token=await getExistingToken(c);if(!token)return false;
+ const tag=token.metadata?.[TOKEN_KEY];if(!tag?.stats)return false;
+ const remote=tag.stats,remoteTime=Number(remote.updatedAt)||0,localTime=Number(c.npcUpdatedAt)||0;
+ if(remoteTime<=localTime)return false;
+ const fields=['hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic','nl','conditions','conditionDetails'];
+ for(const field of fields)if(Object.prototype.hasOwnProperty.call(remote,field))c[field]=remote[field];
+ c.npcUpdatedAt=remoteTime;
+ return true;
+}
+window.RPGNPCBattlefield={spawn,updateHUD,remove,status,pull,get ready(){return ready},get roomId(){return roomId}};
 if(OBR.isAvailable)OBR.onReady(async()=>{
  try{roomId=OBR.room.id;ready=(await OBR.player.getRole())==='GM';announce();
  OBR.player.onChange(p=>{ready=p.role==='GM';announce()});
