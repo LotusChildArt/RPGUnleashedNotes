@@ -106,6 +106,30 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
  #gmTools .npc-combat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 </style>
+<style>
+
+#gmTools .npc-combat-vitals{gap:6px 10px}
+#gmTools .npc-weapon-list{margin:10px 0;display:grid;gap:7px}
+#gmTools .npc-weapon-list-title{font-size:12px}
+#gmTools .npc-weapon-display{border:1px solid var(--edge);border-radius:8px;padding:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px;min-width:0}
+#gmTools .npc-weapon-stats{min-width:0;font-size:12px;overflow-wrap:anywhere;white-space:normal;flex:1 1 155px}
+#gmTools .npc-ammo-counter{display:flex;align-items:center;gap:5px;margin:0;font-size:12px}
+#gmTools .npc-ammo-counter span{font-size:11px;white-space:nowrap}
+#gmTools .npc-ammo-counter button{min-width:30px;min-height:29px;padding:3px 8px;font-size:16px}
+#gmTools .npc-ammo-counter input{width:56px;min-width:0;padding:5px;text-align:center;font-size:13px}
+#gmTools .npc-weapon-editor-wrap{display:grid;gap:8px}
+#gmTools .npc-weapon-heading{display:flex;align-items:center;justify-content:space-between;gap:9px}
+#gmTools .npc-weapon-edit-row{display:grid;grid-template-columns:minmax(100px,1.4fr) minmax(65px,1fr) minmax(90px,1.3fr) 66px 90px 32px;gap:6px;align-items:end;padding:8px;border:1px solid var(--edge);border-radius:8px}
+#gmTools .npc-weapon-edit-row label{display:grid;gap:3px;min-width:0;margin:0}
+#gmTools .npc-weapon-edit-row label span{font-size:11px}
+#gmTools .npc-weapon-edit-row input{min-width:0;width:100%;padding:6px}
+#gmTools .npc-weapon-edit-row [data-weapon-remove]{font-size:18px;padding:5px;min-height:32px}
+@media(max-width:660px){
+ #gmTools .npc-weapon-edit-row{grid-template-columns:repeat(2,minmax(0,1fr)) 32px}
+ #gmTools .npc-weapon-edit-row label:nth-child(3){grid-column:1 / 3}
+ #gmTools .npc-weapon-edit-row [data-weapon-remove]{grid-column:3;grid-row:1}
+}
+</style>
 </head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
