@@ -108,6 +108,34 @@ function ensure(){
   state.npcConditionalDefenseRestore=1;
   save();
  }
+ // Restore feat cross-reference superscripts in previously imported Outlaws records.
+ if(state.npcSuperscriptReferenceRestore!==1&&gm()){
+  const starterIds=new Set(['rpg-outlaws-thief-1','rpg-outlaws-thug-1','rpg-outlaws-bandit-3','rpg-outlaws-gang-member-3','rpg-outlaws-arcane-trickster-3']);
+  const aliases=[
+   ['Squirrelly1','Squirrelly¹'],['Bully1','Bully¹'],['Unbreakable2','Unbreakable²'],
+   ['Improved Unarmed3','Improved Unarmed³'],['Sneak Attack2','Sneak Attack²'],['Bullseye3','Bullseye³'],
+   ['Light Melee Prof4','Light Melee Prof⁴'],['Light Melee4','Light Melee⁴'],
+   ['Bonus Attack5','Bonus Attack⁵'],['Med. Melee4','Med. Melee⁴'],['Combo Breaker6','Combo Breaker⁶'],
+   ['Light Melee Prof2','Light Melee Prof²'],['Ranged Prof3','Ranged Prof³'],
+   ['Bonus Attack4','Bonus Attack⁴'],['Melee2','Melee²'],['Ranged3','Ranged³'],
+   ['Rock Skin5','Rock Skin⁵'],['Healing Touch6','Healing Touch⁶']
+  ];
+  const fix=x=>{
+   const id=x.templateId||x.id;if(!starterIds.has(id))return;
+   for(const field of ['tactics','feats','notes']){
+    if(typeof x[field]!=='string')continue;
+    for(const [flat,sup] of aliases)x[field]=x[field].replaceAll(flat,sup);
+   }
+   if(id==='rpg-outlaws-gang-member-3'&&typeof x.feats==='string'){
+    x.feats=x.feats.replace('Med. Melee Proficiency R1','Med. Melee Proficiency⁴ R1')
+     .replace('Combo Breaker R0','Combo Breaker⁶ R0').replace('Bonus Attack 1','Bonus Attack⁵ 1');
+   }
+  };
+  state.bestiary.forEach(fix);
+  state.campaigns.forEach(campaign=>(campaign.combatants||[]).forEach(fix));
+  state.npcSuperscriptReferenceRestore=1;
+  save();
+ }
  const c=current();if(c)c.combatants ||= [];
  return c;
 }
