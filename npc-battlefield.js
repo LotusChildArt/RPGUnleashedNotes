@@ -116,7 +116,7 @@ async function status(c){if(!await connection())return false;return !!await getE
 async function pull(c){
  if(!await connection())return false;
  const token=await getExistingToken(c);if(!token)return false;
- const tag=token.metadata?.[TOKEN_KEY];if(!tag?.stats)return false;
+ const tag=token.metadata?.[TOKEN_KEY];if(!tag?.stats){await writeTokenState(c,token.id);return false;}
  const remote=tag.stats,remoteTime=Number(remote.updatedAt)||0,localTime=Number(c.npcUpdatedAt)||0;
  if(remoteTime<=localTime)return false;
  const fields=['hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic','nl','conditions','conditionDetails'];
