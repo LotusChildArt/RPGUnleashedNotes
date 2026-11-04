@@ -3,7 +3,7 @@
 const records=[
 {
 id:'rpg-outlaws-thief-1',name:'Thief',role:'Outlaws',race:'',level:1,bod:7,dex:9,mnd:8,cha:6,hp:17,hpMax:17,mana:0,manaMax:0,drArmor:0,drNatural:0,drMagic:0,nl:0,speed:25,
-attack:'BOD 7 / DEX 9',defense:'BOD 7 / DEX 9 (111)',
+attack:'BOD 7 / DEX 9',defense:'BOD 7 / DEX 9',
 weapons:'Weapon (1): 2 Daggers 1d4 | Brass Knuckles 1d4 + Unarmed | Handcrossbow 1d4 (8 bolts)',
 armor:'None',
 feats:'Light Melee Prof R0 or Ranged Proficiency R0 | Thief R0 | Squirrelly1 R0',
@@ -12,7 +12,7 @@ notes:'Attribute values in parentheses: BOD (2), DEX (3), MND (2), CHA (2).\nSki
 },
 {
 id:'rpg-outlaws-thug-1',name:'Thug',role:'Outlaws',race:'',level:1,bod:9,dex:9,mnd:6,cha:6,hp:19,hpMax:19,mana:0,manaMax:0,drArmor:2,drNatural:0,drMagic:0,nl:0,speed:25,
-attack:'BOD 9 / DEX 9',defense:'BOD 9 (112) / DEX 9',
+attack:'BOD 9 / DEX 9',defense:'BOD 9 / DEX 9',
 weapons:'Weapon (1): Mace 1d6 | Brass Knuckles 1d4 + Unarmed | Handaxe 1d6 | Unarmed 3 dmg',
 armor:'Heavy Coat 2 DR / 0 DEF / 0 DEX pen (Dex attacks do not bypass)',
 feats:'Light Melee Prof R0 or Improved Unarmed3 R0 | Bully1 R0 | Unbreakable2 R0',
@@ -21,7 +21,7 @@ notes:'Attribute values in parentheses: BOD (3), DEX (3), MND (2), CHA (2).\nSki
 },
 {
 id:'rpg-outlaws-bandit-3',name:'Bandit',role:'Outlaws',race:'',level:3,bod:8,dex:10,mnd:9,cha:7,hp:28,hpMax:28,mana:0,manaMax:0,drArmor:1,drNatural:0,drMagic:0,nl:0,speed:30,
-attack:'BOD 10 / DEX 12',defense:'BOD 9 / DEX 10 (121)',
+attack:'BOD 10 / DEX 12',defense:'BOD 9 / DEX 10',
 weapons:'Weapon (2): 2 Daggers 1d4 | Light Crossbow 1d6 (8 bolts) | Handaxe 1d6 | Shortsword 1d6',
 armor:'Leather Cuirass 1 DR / 1 DEF / 0 DEX pen',
 feats:'Light Melee Prof4 R1 or Ranged Proficiency R1 | Sneak Attack2 R0 or Bullseye3 R0\nThief R1 | Squirrelly1 R0 | Bonus Attack5 1',
@@ -30,7 +30,7 @@ notes:'Attribute values in parentheses: BOD (2), DEX (3), MND (3), CHA (2).\nSki
 },
 {
 id:'rpg-outlaws-gang-member-3',name:'Gang Member',role:'Outlaws',race:'',level:3,bod:10,dex:10,mnd:7,cha:7,hp:30,hpMax:30,mana:0,manaMax:0,drArmor:2,drNatural:0,drMagic:0,nl:0,speed:30,
-attack:'BOD 12 / DEX 12',defense:'BOD 12 (142) / DEX 10',
+attack:'BOD 12 / DEX 12',defense:'BOD 12 / DEX 10',
 weapons:'Weapon (1): Morningstar 1d8+2/+5 (sw) | Brass Knuckles 1d4 + Unarmed',
 armor:'Full Leather 2 DR / 2 DEF / 0 DEX pen',
 feats:'Light Melee Prof R0 + Improved Unarmed3 R1 or Med. Melee Proficiency R1\nBully1 R1 | Unbreakable2 R0 | Combo Breaker R0 | Bonus Attack 1',
@@ -39,7 +39,7 @@ notes:'Attribute values in parentheses: BOD (3), DEX (3), MND (2), CHA (2).\nSki
 },
 {
 id:'rpg-outlaws-arcane-trickster-3',name:'Arcane Trickster',role:'Outlaws',race:'',level:3,bod:6,dex:8,mnd:9,cha:10,hp:26,hpMax:26,mana:35,manaMax:35,drArmor:2,drNatural:0,drMagic:0,nl:0,speed:25,
-attack:'BOD 6 / DEX 8 | CST CHA 12',defense:'BOD 8 / DEX 8 (121)',
+attack:'BOD 6 / DEX 8 | CST CHA 12',defense:'BOD 8 / DEX 8',
 weapons:'Weapon (1): Dagger 1d4 | Club 1d4 | Handcrossbow 1d4 (8 bolts)',
 armor:'Full Leather 2 DR / 2 DEF / 0 DEX pen',
 feats:'Light Melee Prof2 R0 or Ranged Prof3 R0 | Spontaneous Spellcaster R1 | Squirrelly1 R1\nThief R0 | Bonus Attack4 1',
