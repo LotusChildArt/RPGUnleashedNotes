@@ -19,6 +19,28 @@ const defaultRecord=()=>({id:uid(),name:'',role:'',race:'',level:1,bod:0,dex:0,m
 const gm=()=>state.role==='gm'&&owlAccessRole!=='PLAYER'&&owlAccessRole!=='UNKNOWN';
 let pane='bestiary',editMasterId=null,editCombatId=null;
 let npcPullRunning=false,lastNPCPull=0;
+const NPC_PENDING_KEY='RPGUnleashedNotes.pendingTokenDeletes.v1';
+function consumePendingNPCDeletions(){
+ const engine=window.RPGNPCBattlefield;
+ if(!gm()||!engine?.roomId)return;
+ let queue=[];
+ try{queue=JSON.parse(localStorage.getItem(NPC_PENDING_KEY)||'[]')}catch{return}
+ if(!Array.isArray(queue)||!queue.length)return;
+ const matching=queue.filter(x=>x.roomId===engine.roomId);
+ if(!matching.length)return;
+ const deleted=new Set(matching.map(x=>x.tokenId));
+ let changed=false;
+ for(const campaign of state.campaigns){
+  const list=campaign.combatants||[];
+  const kept=list.filter(c=>!deleted.has(c.tokenLinks?.[engine.roomId]));
+  if(kept.length!==list.length){campaign.combatants=kept;changed=true}
+ }
+ try{localStorage.setItem(NPC_PENDING_KEY,JSON.stringify(queue.filter(x=>x.roomId!==engine.roomId)))}catch{}
+ if(changed){
+  if(editCombatId&&!(current()?.combatants||[]).some(c=>c.id===editCombatId))hideEditors();
+  save();renderBestiary();
+ }
+}
 function startNPCDeletionWatch(){
  const engine=window.RPGNPCBattlefield;
  if(!gm()||!engine?.ready||!engine.watchNPCTokens)return;
@@ -257,8 +279,9 @@ $('npcCombatSave').onclick=async()=>{
  }catch(error){showError(error)}
 };
 window.rpgBestiaryRender=renderBestiary;
-window.addEventListener('rpg-npc-owlbear-state',()=>{startNPCDeletionWatch();renderBestiary();syncNPCsFromScene(true)});
+window.addEventListener('rpg-npc-owlbear-state',()=>{consumePendingNPCDeletions();startNPCDeletionWatch();renderBestiary();syncNPCsFromScene(true)});
+window.addEventListener('storage',e=>{if(e.key===NPC_PENDING_KEY)consumePendingNPCDeletions()});
 setInterval(()=>{if(!$('gmTools').classList.contains('hidden')&&pane==='combat')syncNPCsFromScene()},5000);
 renderBestiary();
-if(window.RPGNPCBattlefield?.ready)startNPCDeletionWatch();
+if(window.RPGNPCBattlefield?.ready){consumePendingNPCDeletions();startNPCDeletionWatch()}
 })();
