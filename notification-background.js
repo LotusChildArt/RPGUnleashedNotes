@@ -51,3 +51,61 @@ OBR.onReady(async()=>{
   }
  });
 });
+
+/*
+ * Persistent NPC token deletion watcher.
+ * The extension background remains mounted when the Notes popover closes.
+ * Queue token deletions separately; the Notes foreground applies the changes
+ * through its regular campaign save/sync path on the next visit.
+ */
+const NPC_STATE_KEY='RPGUnleashedNotes.v1';
+const NPC_PENDING_KEY='RPGUnleashedNotes.pendingTokenDeletes.v1';
+function trackedNPCs(roomId){
+ try{
+  const saved=JSON.parse(localStorage.getItem(NPC_STATE_KEY)||'{}');
+  return (saved.campaigns||[]).flatMap(c=>c.combatants||[])
+   .map(c=>({id:c.id,tokenId:c.tokenLinks?.[roomId]}))
+   .filter(c=>typeof c.tokenId==='string'&&c.tokenId);
+ }catch{return []}
+}
+function enqueueMissingNPCs(roomId,missing){
+ if(!missing.length)return;
+ try{
+  const queue=JSON.parse(localStorage.getItem(NPC_PENDING_KEY)||'[]');
+  const existing=Array.isArray(queue)?queue:[];
+  const keys=new Set(existing.map(x=>x.roomId+'|'+x.tokenId));
+  for(const c of missing){
+   const key=roomId+'|'+c.tokenId;
+   if(keys.has(key))continue;
+   existing.push({roomId,tokenId:c.tokenId,combatantId:c.id});keys.add(key);
+  }
+  localStorage.setItem(NPC_PENDING_KEY,JSON.stringify(existing.slice(-400)));
+ }catch(error){console.warn('Could not queue NPC token deletions:',error)}
+}
+OBR.onReady(async()=>{
+ let roomId,role='UNKNOWN',unsubscribe=null,initialized=false,seen=new Set();
+ try{roomId=OBR.room.id;role=await OBR.player.getRole()}catch{return}
+ const stop=()=>{if(unsubscribe){unsubscribe();unsubscribe=null}initialized=false;seen=new Set()};
+ const evaluate=items=>{
+  if(role!=='GM'||!Array.isArray(items))return;
+  const visible=new Set(items.filter(item=>item.layer==='CHARACTER').map(item=>item.id));
+  const tracked=trackedNPCs(roomId);
+  if(!initialized){
+   seen=new Set(tracked.filter(c=>visible.has(c.tokenId)).map(c=>c.tokenId));
+   initialized=true;return;
+  }
+  const missing=tracked.filter(c=>seen.has(c.tokenId)&&!visible.has(c.tokenId));
+  if(missing.length)enqueueMissingNPCs(roomId,missing);
+  for(const c of missing)seen.delete(c.tokenId);
+  for(const c of tracked)if(visible.has(c.tokenId))seen.add(c.tokenId);
+ };
+ const start=async()=>{
+  stop();
+  if(role!=='GM'||!await OBR.scene.isReady())return;
+  unsubscribe=OBR.scene.items.onChange(evaluate);
+  try{evaluate(await OBR.scene.items.getItems())}catch(error){console.warn('Could not watch NPC tokens:',error)}
+ };
+ OBR.player.onChange(p=>{if(!p.role)return;role=p.role;start().catch(console.warn)});
+ OBR.scene.onReadyChange(ready=>{if(ready)start().catch(console.warn);else stop()});
+ await start();
+});
