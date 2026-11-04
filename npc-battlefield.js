@@ -1,10 +1,11 @@
-import OBR,{buildImage,buildText} from 'https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm';
+import OBR,{buildImage,buildText,buildLabel} from 'https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm';
 
 const TOKEN_KEY='com.rpgunleashed.notes/npcTokenV1';
 const HUD_KEY='com.rpgunleashed.notes/npcHudV1';
 const ASSETS='https://rpgunleashedchara.onrender.com/assets/';
 const DEFAULT_TOKEN='https://rpgunleashednotes.onrender.com/assets/npc-placeholder.webp';
 let roomId=null,ready=false,spawnSequence=0;
+let tokenWatch=null,watchedTokens=new Map(),seenTokenIds=new Set(),watchHasBaseline=false;
 const asNumber=(v,defaultValue=0)=>Number.isFinite(Number(v))?Number(v):defaultValue;
 function announce(){window.dispatchEvent(new CustomEvent('rpg-npc-owlbear-state',{detail:{ready,roomId}}))}
 const metadata=(c,kind)=>({[HUD_KEY]:{combatantId:c.id,roomId,kind}});
@@ -32,6 +33,15 @@ function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId
  if(!tokenId)item.name(combatant.name);
  if(tokenId)item.attachedTo(tokenId).disableHit(true);
  return item.build();
+}
+function buildNPCNameLabel(combatant,token,bounds){
+ const text=String(combatant.name||'NPC').replace(/ #[0-9]+$/,'').trim()||'NPC';
+ return buildLabel().plainText(text).fontSize(18).fontWeight(700)
+  .textAlign('CENTER').fillColor('#ffffff').backgroundColor('#151515')
+  .backgroundOpacity(.85).padding(5).cornerRadius(5)
+  .position({x:bounds.center.x,y:bounds.min.y-12})
+  .layer('ATTACHMENT').attachedTo(token.id).locked(true).disableHit(true)
+  .metadata(metadata(combatant,'npc-name')).build();
 }
 function numberItem({combatant,tokenId,kind,value,position,width}){
  return buildText().plainText(String(value)).textType('PLAIN').width(Math.max(34,width*1.4)).height(Math.max(28,width)).padding(0)
@@ -61,7 +71,7 @@ async function updateHUD(c){
  const bounds=await OBR.scene.items.getItemBounds([token.id]),dpi=await OBR.scene.grid.getDpi();
  const width=Math.max(115,bounds.width*1.12),height=width*40/300,gap=Math.max(3,bounds.height*.025);
  const iconWidth=Math.max(26,bounds.width*.28),iconHeight=iconWidth*63/72;
- const items=[];let y=bounds.max.y+gap;
+ const items=[buildNPCNameLabel(c,token,bounds)];let y=bounds.max.y+gap;
  const addBar=(type,current,max)=>{
   if(max<=0&&current<=0)return;
   const fraction=max>0?Math.max(0,Math.min(1,current/max)):0;
@@ -127,6 +137,7 @@ async function spawn(c){
  const token=imageItem({url:imageUrl,pixelsWidth:sourceWidth,pixelsHeight:sourceHeight,dpi,worldWidth,position,combatant:c,kind:'token'});
  await OBR.scene.items.addItems([token]);
  c.tokenLinks={...(c.tokenLinks||{}),[roomId]:token.id};
+ watchedTokens.set(token.id,c.id);seenTokenIds.add(token.id);
  try{await updateHUD(c)}
  catch(error){await OBR.scene.items.deleteItems([token.id]);delete c.tokenLinks[roomId];throw error}
  return token.id;
@@ -138,9 +149,34 @@ async function remove(c){
  const attached=await OBR.scene.items.getItems(x=>x.metadata?.[HUD_KEY]?.combatantId===c.id&&x.metadata?.[HUD_KEY]?.roomId===roomId);
  await OBR.scene.items.deleteItems([...attached.map(x=>x.id),token.id]);
  delete c.tokenLinks[roomId];
+ watchedTokens.delete(token.id);seenTokenIds.delete(token.id);
  return true;
 }
 async function status(c){if(!await connection())return false;return !!await getExistingToken(c)}
+// Only Character-layer token disappearance counts, not attachment HUD changes.
+function watchNPCTokens(records,onDeleted){
+ if(tokenWatch){tokenWatch();tokenWatch=null}
+ watchedTokens=new Map(records.filter(c=>c.tokenLinks?.[roomId]).map(c=>[c.tokenLinks[roomId],c.id]));
+ watchHasBaseline=false;seenTokenIds=new Set();
+ if(!ready||!roomId||typeof onDeleted!=='function')return;
+ const handle=items=>{
+  if(!ready||!Array.isArray(items))return;
+  const inScene=new Set(items.filter(i=>i.layer==='CHARACTER').map(i=>i.id));
+  if(!watchHasBaseline){
+   seenTokenIds=new Set([...watchedTokens.keys()].filter(id=>inScene.has(id)));
+   watchHasBaseline=true;return;
+  }
+  const removed=[];
+  for(const [tokenId,combatantId] of watchedTokens){
+   if(seenTokenIds.has(tokenId)&&!inScene.has(tokenId)){
+    removed.push({tokenId,combatantId});watchedTokens.delete(tokenId);seenTokenIds.delete(tokenId);
+   }else if(inScene.has(tokenId))seenTokenIds.add(tokenId);
+  }
+  if(removed.length)onDeleted(removed);
+ };
+ tokenWatch=OBR.scene.items.onChange(handle);
+ OBR.scene.items.getItems().then(handle).catch(error=>console.warn('NPC token watch unavailable',error));
+}
 async function pull(c){
  if(!await connection())return false;
  const token=await getExistingToken(c);if(!token)return false;
@@ -152,10 +188,11 @@ async function pull(c){
  c.npcUpdatedAt=remoteTime;
  return true;
 }
-window.RPGNPCBattlefield={spawn,updateHUD,remove,status,pull,get ready(){return ready},get roomId(){return roomId}};
+window.RPGNPCBattlefield={spawn,updateHUD,remove,status,pull,watchNPCTokens,get ready(){return ready},get roomId(){return roomId}};
 if(OBR.isAvailable)OBR.onReady(async()=>{
  try{roomId=OBR.room.id;ready=(await OBR.player.getRole())==='GM';announce();
- OBR.player.onChange(p=>{ready=p.role==='GM';announce()});
+ OBR.player.onChange(p=>{ready=p.role==='GM';if(!ready&&tokenWatch){tokenWatch();tokenWatch=null}announce()});
+ OBR.scene.onReadyChange(sceneReady=>{if(!sceneReady&&tokenWatch){tokenWatch();tokenWatch=null;watchHasBaseline=false}announce()});
  }catch(error){console.warn('NPC battlefield connection unavailable',error)}
 });
 else announce();
