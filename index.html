@@ -130,6 +130,13 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
  #gmTools .npc-weapon-edit-row [data-weapon-remove]{grid-column:3;grid-row:1}
 }
 </style>
+<style>
+#gmTools .npc-weapon-display{justify-content:flex-start}
+#gmTools .npc-weapon-choice{display:flex;align-items:center;flex:0 0 auto;margin:0;cursor:pointer}
+#gmTools .npc-weapon-choice input{width:19px;height:19px;min-width:19px;margin:0 3px 0 0;cursor:pointer;accent-color:var(--accent,#698ec7)}
+#gmTools .npc-weapon-display:has(.npc-weapon-choice input:checked){border-color:var(--accent,#698ec7);background:rgba(110,150,200,.09)}
+#gmTools .npc-popup-actions{flex-wrap:wrap}
+</style>
 </head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
