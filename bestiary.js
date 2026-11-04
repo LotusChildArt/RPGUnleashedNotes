@@ -239,8 +239,10 @@ function setPane(to){
  pane=to;
  $('gmBestiaryPane').classList.toggle('hidden',to!=='bestiary');
  $('gmCombatPane').classList.toggle('hidden',to!=='combat');
+ $('gmBroadcastPane').classList.toggle('hidden',to!=='broadcast');
  $('gmToolsBestiary').classList.toggle('active',to==='bestiary');
  $('gmToolsCombat').classList.toggle('active',to==='combat');
+ $('gmToolsBroadcast').classList.toggle('active',to==='broadcast');
 }
 function hideEditors(){
  $('npcBestiaryEditor').classList.add('hidden');$('npcCombatEditor').classList.add('hidden');
@@ -548,6 +550,23 @@ function renderBestiary(){
 }
 $('gmToolsBestiary').onclick=()=>setPane('bestiary');
 $('gmToolsCombat').onclick=()=>setPane('combat');
+$('gmToolsBroadcast').onclick=()=>setPane('broadcast');
+$('gmBroadcastSend').onclick=async()=>{
+ if(!gm())return;
+ const input=$('gmBroadcastMessage'),button=$('gmBroadcastSend'),status=$('gmBroadcastStatus');
+ const message=input.value.trim();
+ if(!message){status.textContent='Enter a message to broadcast.';input.focus();return}
+ if(message.length>220){status.textContent='Keep the broadcast under 220 characters.';return}
+ if(typeof window.rpgSendGMBroadcast!=='function'){
+  status.textContent='Broadcasts require an active Owlbear connection.';return;
+ }
+ button.disabled=true;status.textContent='Sending…';
+ try{
+  await window.rpgSendGMBroadcast(message);
+  input.value='';status.textContent='Broadcast sent to the Owlbear room.';
+ }catch(error){status.textContent='Broadcast failed: '+(error?.message||String(error))}
+ finally{button.disabled=false}
+};
 $('npcGoBestiary').onclick=()=>setPane('bestiary');
 $('npcBestiarySearch').oninput=renderBestiary;
 $('npcAddBestiary').onclick=()=>editMaster(null);
