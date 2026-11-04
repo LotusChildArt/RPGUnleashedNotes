@@ -33,8 +33,8 @@ function imageItem({url,pixelsWidth,pixelsHeight,dpi,worldWidth,position,tokenId
  if(!tokenId){
   item.name(combatant.name).textItemType('LABEL')
    .plainText(npcName(combatant)).fontSize(11).fontWeight(700)
-   .textAlign('CENTER').fillColor('#ffffff')
-   .strokeColor('#000000').strokeOpacity(1).strokeWidth(2).textPadding(0);
+   .textAlign('CENTER').textFillColor('#ffffff')
+   .textStrokeColor('#000000').textStrokeOpacity(1).textStrokeWidth(2).textPadding(0);
  }
  if(tokenId)item.attachedTo(tokenId).disableHit(true);
  return item.build();
