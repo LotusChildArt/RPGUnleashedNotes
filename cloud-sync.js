@@ -72,6 +72,19 @@ async function broadcastActivities(events){
   },{destination:'ALL'});
  }catch(error){console.warn('RPG Unleashed activity announcement failed',error)}
 }
+// Manual GM announcements use the same room-wide activity channel and
+// background notification renderer as published campaign updates.
+window.rpgSendGMBroadcast=async message=>{
+ const text=String(message||'').trim();
+ if(!text||text.length>220)throw Error('Enter a message of 1–220 characters.');
+ if(!OBR.isAvailable||!roomId||!await OBR.scene.isReady())throw Error('Open Notes in an active Owlbear room.');
+ const role=await OBR.player.getRole();
+ if(role!=='GM'||owlRole!=='GM')throw Error('Only the Owlbear GM can broadcast.');
+ await OBR.broadcast.sendMessage(ACTIVITY_CHANNEL,{
+  version:1,roomId,actorId:OBR.player.id,eventId:crypto.randomUUID(),
+  events:[{kind:'gm-broadcast',message:text}]
+ },{destination:'ALL'});
+};
 function nameForTarget(kind,id){
  const campaign=bridge.getActiveCampaign();
  const array=kind==='person'?campaign?.people:kind==='place'?campaign?.places:campaign?.quests;
