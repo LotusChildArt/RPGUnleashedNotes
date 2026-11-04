@@ -60,7 +60,52 @@ body.player-view .gm-only-tab,body.owlbear-player .gm-only-tab{display:none!impo
 .time-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:12px}.time-calendar span,.time-calendar button{min-width:0;padding:9px 2px;border-radius:9px;text-align:center;font-size:13px}.time-calendar .weekday{font-size:11px;font-weight:bold;color:var(--muted)}.time-calendar .empty-day{border:0}.time-calendar .current-day{background:var(--accent);border:2px solid var(--edge);font-weight:bold}
 body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:none!important}
 #settings #campaignThemeToggle,#optionsScreen #optionTheme,#optionsScreen #optionView{width:100%;max-width:460px}
-</style></head>
+</style><style>
+/* Compact GM Bestiary creation and active-combatant cards */
+#gmTools .npc-creator{display:grid;gap:8px}
+#gmTools .npc-editor-row{display:grid;gap:8px}
+#gmTools .npc-editor-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+#gmTools .npc-editor-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+#gmTools .npc-editor-two{grid-template-columns:repeat(2,minmax(0,1fr))}
+#gmTools .npc-creator .field{min-width:0;margin:0}
+#gmTools .npc-creator label{font-size:12px;margin-bottom:3px;display:block}
+#gmTools .npc-creator input,#gmTools .npc-creator textarea{width:100%;min-width:0}
+#gmTools .npc-creator textarea{resize:vertical}
+#gmTools .npc-combat-card{position:relative;overflow:visible;padding:12px;margin:10px 0}
+#gmTools .npc-combat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+#gmTools .npc-combat-head h3{margin:0}
+#gmTools .npc-combat-head .subtle-info{margin:3px 0 7px}
+#gmTools .npc-more{position:relative;flex:0 0 auto;z-index:3}
+#gmTools .npc-more[open]{z-index:10}
+#gmTools .npc-more>summary{list-style:none;cursor:pointer;user-select:none;padding:2px 10px;border:1px solid var(--edge);border-radius:7px;font-size:23px;line-height:24px;font-weight:700}
+#gmTools .npc-more>summary::-webkit-details-marker{display:none}
+#gmTools .npc-more-list{position:absolute;right:0;top:100%;width:max-content;min-width:180px;max-width:min(280px,90vw);display:grid;gap:3px;z-index:20;background:var(--panel,var(--surface,#fff));color:var(--fg,var(--text,#222));border:1px solid var(--edge);border-radius:9px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+#gmTools .npc-more-list button{display:block;width:100%;text-align:left;padding:9px 12px;white-space:normal}
+#gmTools .npc-combat-vitals{display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;font-size:13px;margin:8px 0}
+#gmTools .npc-hp-edit{display:flex;align-items:center;gap:5px;font-weight:700;margin:0}
+#gmTools .npc-hp-edit input{width:66px;min-width:0;padding:5px 6px;font-size:14px;font-weight:700}
+#gmTools .npc-combat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+#gmTools .npc-combat-detail{min-width:0;display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--edge);border-radius:7px}
+#gmTools .npc-combat-detail span{font-size:11px;opacity:.8;font-weight:600}
+#gmTools .npc-combat-detail strong{font-size:12px;overflow-wrap:anywhere;white-space:pre-wrap}
+#gmTools .npc-combat-bottom{display:flex;align-items:center;justify-content:space-between;gap:9px}
+#gmTools .npc-popup-actions{display:flex;gap:8px}
+#gmTools .npc-combat-bottom button{padding:6px 12px;font-size:12px}
+#gmTools .npc-combat-bottom .npc-remove{font-size:22px;line-height:20px;min-width:37px}
+.npc-info-dialog{width:min(92vw,490px);max-height:80vh;border:1px solid var(--edge,#777);border-radius:12px;padding:18px;background:var(--panel,var(--surface,#fff));color:var(--fg,var(--text,#222))}
+.npc-info-dialog::backdrop{background:rgba(0,0,0,.6)}
+.npc-info-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.npc-info-header h3{margin:0}
+.npc-info-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:16px 0;max-height:55vh;overflow:auto}
+.npc-info-footer{display:flex;justify-content:flex-end}
+@media(max-width:600px){
+ #gmTools .npc-editor-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+ #gmTools .npc-editor-three{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #gmTools .npc-editor-three .field:first-child:nth-last-child(3){grid-column:auto}
+ #gmTools .npc-combat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+</head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
 <section id="rulesScreen" class="app-screen screen-hidden"><div class="app-shell"><div class="screen-title"><h1>Rules</h1></div></div></section>
@@ -131,6 +176,11 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 </div></section>
 </section>
 </main>
+<dialog id="npcInfoDialog" class="npc-info-dialog" aria-labelledby="npcInfoTitle">
+ <div class="npc-info-header"><h3 id="npcInfoTitle"></h3><form method="dialog"><button aria-label="Close" class="small" type="submit">×</button></form></div>
+ <div id="npcInfoText" class="npc-info-text"></div>
+ <form method="dialog" class="npc-info-footer"><button type="submit">Close</button></form>
+</dialog>
 <script>
 const $=id=>document.getElementById(id), KEY='RPGUnleashedNotes.v1', PREF_KEY='RPGUnleashedNotes.preferences.v1', uid=()=>crypto.randomUUID();
 const blank=(name,gm='')=>({id:uid(),name,gm,places:[],people:[],quests:[],entries:[]});
