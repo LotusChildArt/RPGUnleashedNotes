@@ -90,13 +90,41 @@ async function updateHUD(c){
  if(items.length)await OBR.scene.items.addItems(items);
  return true;
 }
+async function loadTokenImageDimensions(url){
+ return new Promise((resolve,reject)=>{
+  const img=new Image();
+  let completed=false;
+  const timer=setTimeout(()=>finish(new Error('Token image did not load. Check the image URL.')),10000);
+  function finish(error){
+   if(completed)return;completed=true;clearTimeout(timer);
+   img.onload=null;img.onerror=null;
+   if(error){reject(error);return}
+   const width=img.naturalWidth,height=img.naturalHeight;
+   if(!width||!height){reject(new Error('Could not read token image dimensions.'));return}
+   resolve({width,height});
+  }
+  img.onload=()=>finish();
+  img.onerror=()=>finish(new Error('Token image could not be loaded from its URL.'));
+  img.src=url;
+ });
+}
 async function spawn(c){
  if(!await connection())throw Error('Open Notes from an Owlbear room with an active scene to spawn tokens.');
- const center=await OBR.viewport.getPosition(),dpi=await OBR.scene.grid.getDpi();
- const index=spawnSequence++;const position={x:center.x+(index%6)*dpi*1.4,y:center.y+Math.floor(index/6)*dpi*1.4};
+ const dpi=await OBR.scene.grid.getDpi();
+ // Viewport position is a camera transform, not the visible scene's center.
+ const [screenWidth,screenHeight]=await Promise.all([OBR.viewport.getWidth(),OBR.viewport.getHeight()]);
+ const center=await OBR.viewport.inverseTransformPoint({x:screenWidth/2,y:screenHeight/2});
+ const index=spawnSequence++;
+ const unsnapped={x:center.x+(index%6)*dpi,y:center.y+Math.floor(index/6)*dpi};
+ // Snap to cell centers, not corners, so a one-cell token sits within the square.
+ const position=await OBR.scene.grid.snapPosition(unsnapped,1,false);
  const imageUrl=String(c.tokenImage||DEFAULT_TOKEN).trim();
  if(!/^https:\/\//i.test(imageUrl))throw Error('Token artwork must be an HTTPS image URL.');
- const token=imageItem({url:imageUrl,pixelsWidth:512,pixelsHeight:512,dpi,worldWidth:dpi,position,combatant:c,kind:'token'});
+ const {width:sourceWidth,height:sourceHeight}=await loadTokenImageDimensions(imageUrl);
+ // Owlbear uses the declared image dimensions to calculate its world size.
+ // Preserve aspect ratio while fitting the longest edge inside one grid cell.
+ const worldWidth=dpi*sourceWidth/Math.max(sourceWidth,sourceHeight);
+ const token=imageItem({url:imageUrl,pixelsWidth:sourceWidth,pixelsHeight:sourceHeight,dpi,worldWidth,position,combatant:c,kind:'token'});
  await OBR.scene.items.addItems([token]);
  c.tokenLinks={...(c.tokenLinks||{}),[roomId]:token.id};
  try{await updateHUD(c)}
