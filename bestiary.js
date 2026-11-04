@@ -88,6 +88,26 @@ function ensure(){
   state.npcCombatDefaultsMigration=1;
   save();
  }
+ // Restore conditional DEF values mistakenly removed by the previous migration.
+ // Only touch original Outlaws templates and their copies if DEF still matches
+ // the exact unmodified value; customized combatant DEF is left alone.
+ if(state.npcConditionalDefenseRestore!==1&&gm()){
+  const original={
+   'rpg-outlaws-thief-1':['BOD 7 / DEX 9','BOD 7 / DEX 9 (11¹)'],
+   'rpg-outlaws-thug-1':['BOD 9 / DEX 9','BOD 9 (11²) / DEX 9'],
+   'rpg-outlaws-bandit-3':['BOD 9 / DEX 10','BOD 9 / DEX 10 (12¹)'],
+   'rpg-outlaws-gang-member-3':['BOD 12 / DEX 10','BOD 12 (14²) / DEX 10'],
+   'rpg-outlaws-arcane-trickster-3':['BOD 8 / DEX 8','BOD 8 / DEX 8 (12¹)']
+  };
+  const restore=x=>{
+   const record=original[x.templateId||x.id];
+   if(record&&x.defense===record[0])x.defense=record[1];
+  };
+  state.bestiary.forEach(restore);
+  state.campaigns.forEach(campaign=>(campaign.combatants||[]).forEach(restore));
+  state.npcConditionalDefenseRestore=1;
+  save();
+ }
  const c=current();if(c)c.combatants ||= [];
  return c;
 }
