@@ -76,6 +76,18 @@ function ensure(){
   }
   state.bestiaryStarterImportVersion=1;save();
  }
+ // Repair flattened reference markers in legacy Outlaws DEF and missing attacks.
+ if(state.npcCombatDefaultsMigration!==1&&gm()){
+  const normalize=x=>{
+   if(!x)return;
+   if(x.numberAttacks==null)x.numberAttacks=1;
+   if(typeof x.defense==='string')x.defense=x.defense.replace(/\s*\((?:111|112|121|142)\)(?=\s*(?:\/|$))/g,'');
+  };
+  state.bestiary.forEach(normalize);
+  state.campaigns.forEach(campaign=>(campaign.combatants||[]).forEach(normalize));
+  state.npcCombatDefaultsMigration=1;
+  save();
+ }
  const c=current();if(c)c.combatants ||= [];
  return c;
 }
@@ -221,7 +233,7 @@ function combatHTML(x){
  const hasToken=!!Object.keys(x.tokenLinks||{}).length;
  const id=escapeHTML(x.id);
  const info=(label,value)=>'<div class="npc-combat-detail"><span>'+label+'</span><strong>'+escapeHTML(value||'—')+'</strong></div>';
- const numberAttacks=x.numberAttacks==null?'—':String(x.numberAttacks);
+ const numberAttacks=String(x.numberAttacks??1);
 
  const weaponBlocks=weaponEntries(x).map((w,index)=>{
   const ammo=w.ammo!==null&&w.ammo!==undefined;
