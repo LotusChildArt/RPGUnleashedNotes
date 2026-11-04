@@ -3,19 +3,8 @@
 const $=id=>document.getElementById(id);
 const escapeHTML=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const uid=()=>crypto.randomUUID();
-const numbers=['level','bod','dex','mnd','cha','hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic','nl','speed'];
-const defs=[
- ['name','Name','text'],['role','Role / Category','text'],['race','Race / Species','text'],['level','Level','number'],
- ['bod','BOD','number'],['dex','DEX','number'],['mnd','MND','number'],['cha','CHA','number'],
- ['hp','Current HP','number'],['hpMax','Maximum HP','number'],['mana','Current Mana','number'],['manaMax','Maximum Mana','number'],
- ['drArmor','Armor DR','number'],['drNatural','Natural DR','number'],['drMagic','Magic DR','number'],
- ['nl','NL','number'],['speed','Speed (ft)','number'],['attack','Attacks (BOD / DEX)','text'],
- ['defense','Defenses (BOD / DEX)','text'],['weapons','Weapons / Damage','textarea'],
- ['armor','Armor / Equipment','textarea'],['feats','Feats / Abilities','textarea'],
- ['conditions','Conditions (comma-separated)','text'],['tactics','Tactics / Drive','textarea'],
- ['notes','Notes','textarea'],['tokenImage','Token artwork (HTTPS image URL, optional)','url']
-];
-const defaultRecord=()=>({id:uid(),name:'',role:'',race:'',level:1,bod:0,dex:0,mnd:0,cha:0,hp:10,hpMax:10,mana:0,manaMax:0,drArmor:0,drNatural:0,drMagic:0,nl:0,speed:0,attack:'',defense:'',weapons:'',armor:'',feats:'',conditions:'',tactics:'',notes:'',tokenImage:''});
+const numbers=['level','bod','dex','mnd','cha','hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic','nl','speed','numberAttacks'];
+const defaultRecord=()=>({id:uid(),name:'',role:'',race:'',level:1,bod:0,dex:0,mnd:0,cha:0,hp:10,hpMax:10,mana:0,manaMax:0,drArmor:0,drNatural:0,drMagic:0,nl:0,speed:0,attack:'',defense:'',weapons:'',armor:'',feats:'',conditions:'',tactics:'',drive:'',inventory:'',numberAttacks:1,notes:'',tokenImage:''});
 const gm=()=>state.role==='gm'&&owlAccessRole!=='PLAYER'&&owlAccessRole!=='UNKNOWN';
 let pane='bestiary',editMasterId=null,editCombatId=null;
 let npcPullRunning=false,lastNPCPull=0;
@@ -90,13 +79,34 @@ function ensure(){
  const c=current();if(c)c.combatants ||= [];
  return c;
 }
+function parsedDrive(item){
+ if(item.drive)return String(item.drive);
+ return String(item.tactics||'').match(/^Drive:\\s*([^\\n]*)/)?.[1]?.trim()||'';
+}
+function parsedTactics(item){
+ const tactics=String(item.tactics||'');
+ return tactics.replace(/^Drive:\\s*[^\\n]*(?:\\n|$)/,'').trim();
+}
+function npcInput(key,label,item,type='text',extra=''){
+ const value=item[key]??'',id='npcField_'+key;
+ return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+'</label>'+
+  '<input id="'+id+'" data-npc-field="'+key+'" type="'+type+'" '+extra+' value="'+escapeHTML(value)+'"></div>';
+}
+function npcTextarea(key,label,value,rows=2){
+ return '<div class="field"><label for="npcField_'+key+'">'+escapeHTML(label)+'</label><textarea id="npcField_'+key+'" data-npc-field="'+key+'" rows="'+rows+'">'+escapeHTML(value??'')+'</textarea></div>';
+}
 function fieldMarkup(item){
- return defs.map(([key,label,type])=>{
-  const value=item[key]??'',id='npcField_'+key;
-  return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+'</label>'+
-   (type==='textarea'?'<textarea data-npc-field="'+key+'" id="'+id+'" rows="3">'+escapeHTML(value)+'</textarea>':
-    '<input data-npc-field="'+key+'" id="'+id+'" type="'+type+'" '+(type==='number'?'step="1"':'')+' value="'+escapeHTML(value)+'">')+'</div>';
- }).join('');
+ const x={...item,drive:parsedDrive(item),tactics:parsedTactics(item)};
+ return '<div class="npc-creator">'+
+  '<div class="npc-editor-row npc-editor-three">'+npcInput('name','Name',x)+npcInput('role','Role',x)+npcInput('level','Level',x,'number','min="0" step="1"')+'</div>'+
+  '<div class="npc-editor-row npc-editor-four">'+['bod','dex','mnd','cha'].map(k=>npcInput(k,k.toUpperCase(),x,'number','step="1"')).join('')+'</div>'+
+  '<div class="npc-editor-row npc-editor-three">'+npcInput('hp','HP',x,'number','step="1"')+npcInput('hpMax','Max HP',x,'number','min="0" step="1"')+npcInput('mana','Mana',x,'number','step="1"')+'</div>'+
+  '<div class="npc-editor-row npc-editor-three">'+npcInput('manaMax','Max Mana',x,'number','min="0" step="1"')+npcInput('drArmor','Armor DR',x,'number','step="1"')+npcInput('drNatural','Natural DR',x,'number','step="1"')+'</div>'+
+  '<div class="npc-editor-row npc-editor-three">'+npcInput('drMagic','Magic DR',x,'number','step="1"')+npcInput('attack','ATK',x)+npcInput('defense','DEF',x)+'</div>'+
+  '<div class="npc-editor-row npc-editor-two">'+npcInput('numberAttacks','Number of Attacks',x,'number','min="1" step="1"')+npcInput('tokenImage','Token image URL (optional)',x,'url')+'</div>'+
+  npcTextarea('weapons','Weapon',x.weapons)+npcTextarea('armor','Armor',x.armor)+npcTextarea('inventory','Inventory',x.inventory)+
+  npcTextarea('tactics','Tactics',x.tactics,3)+npcTextarea('drive','Drive',x.drive,2)+
+  '</div>';
 }
 function formData(root,previous){
  const data={...previous};
@@ -106,9 +116,13 @@ function formData(root,previous){
   if(numbers.includes(k)&&(!Number.isFinite(data[k])||!Number.isInteger(data[k])))throw Error('All numeric fields must contain whole numbers.');
  }
  if(!data.name)throw Error('Enter a name.');
+ if(data.numberAttacks!==undefined&&(!Number.isInteger(data.numberAttacks)||data.numberAttacks<1))throw Error('Number of attacks must be at least 1.');
  if(data.hpMax<0||data.manaMax<0)throw Error('Maximum HP and Mana cannot be negative.');
  if(data.hpMax>1000000||data.manaMax>1000000)throw Error('HP and Mana maximums must be under one million.');
  if(data.tokenImage&&!/^https:\/\//i.test(data.tokenImage))throw Error('Token artwork must use HTTPS.');
+ // Keep the legacy Drive header out of tactics when the compact editor saves.
+ if(typeof data.tactics==='string')data.tactics=data.tactics.trim();
+ if(typeof data.drive==='string')data.drive=data.drive.trim();
  return data;
 }
 function setPane(to){
@@ -157,9 +171,39 @@ function masterHTML(x){
 }
 function combatHTML(x){
  const hasToken=!!Object.keys(x.tokenLinks||{}).length;
- return '<div class="entry npc-entry"><h3>'+escapeHTML(x.name)+'</h3><p class="subtle-info">'+escapeHTML(x.role||'Combatant')+' · '+(hasToken?'Token linked':'No linked token')+'</p>'+statStrip(x)+
- (x.conditions?'<p class="subtle-info">Conditions: '+escapeHTML(x.conditions)+'</p>':'')+
- '<div class="npc-actions"><button data-combat-edit="'+escapeHTML(x.id)+'">Restat / Edit</button><button data-combat-hp="'+escapeHTML(x.id)+'">Adjust HP</button><button data-combat-spawn="'+escapeHTML(x.id)+'">Spawn Token</button><button data-combat-sync="'+escapeHTML(x.id)+'">Refresh HUD</button><button data-combat-promote="'+escapeHTML(x.id)+'">Save to Bestiary</button><button data-combat-remove="'+escapeHTML(x.id)+'">Remove Token</button><button data-combat-delete="'+escapeHTML(x.id)+'">Delete Combatant</button></div></div>';
+ const id=escapeHTML(x.id);
+ const info=(label,value)=>'<div class="npc-combat-detail"><span>'+label+'</span><strong>'+escapeHTML(value||'—')+'</strong></div>';
+ const numberAttacks=x.numberAttacks==null?'—':String(x.numberAttacks);
+ return '<article class="entry npc-entry npc-combat-card">'+
+  '<div class="npc-combat-head"><div><h3>'+escapeHTML(x.name)+'</h3><p class="subtle-info">'+escapeHTML([x.role,x.level!=null?'Level '+x.level:''].filter(Boolean).join(' · '))+' · '+(hasToken?'Token linked':'Prepared')+'</p></div>'+
+  '<details class="npc-more"><summary title="Combatant options" aria-label="Combatant options">…</summary><div class="npc-more-list">'+
+  '<button data-combat-edit="'+id+'">Edit / Restat</button>'+
+  '<button data-combat-promote="'+id+'">Save as Bestiary Entry</button>'+
+  (hasToken?'<button data-combat-sync="'+id+'">Refresh HUD</button>':'<button data-combat-spawn="'+id+'">Spawn Token</button>')+
+  '</div></details></div>'+
+  '<div class="npc-combat-vitals">'+
+  '<label class="npc-hp-edit">HP <input data-combat-hp="'+id+'" type="number" step="1" aria-label="Current HP for '+escapeHTML(x.name)+'" value="'+escapeHTML(x.hp)+'"></label>'+
+  '<span class="npc-max-hp">/ '+escapeHTML(x.hpMax)+' max</span>'+
+  '<span>DR '+escapeHTML(Number(x.drArmor||0)+Number(x.drNatural||0)+Number(x.drMagic||0))+'</span>'+
+  '<span>Mana '+escapeHTML(x.mana??0)+' / '+escapeHTML(x.manaMax??0)+'</span>'+
+  '</div>'+
+  '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+info('Attacks',numberAttacks)+
+  info('Weapon',x.weapons)+info('Armor',x.armor)+info('Inventory',x.inventory)+'</div>'+
+  '<div class="npc-combat-bottom"><div class="npc-popup-actions">'+
+  '<button data-combat-popup="tactics" data-combat-id="'+id+'">Tactics</button>'+
+  '<button data-combat-popup="drive" data-combat-id="'+id+'">Drive</button></div>'+
+  '<button class="npc-remove" data-combat-delete="'+id+'" title="Remove combatant and token" aria-label="Remove '+escapeHTML(x.name)+'">−</button></div>'+
+  '</article>';
+}
+function showCombatPopup(combatant,kind){
+ const dialog=$('npcInfoDialog');
+ const heading=$('npcInfoTitle'),content=$('npcInfoText');
+ if(!dialog)return;
+ const isDrive=kind==='drive';
+ heading.textContent=(isDrive?'Drive':'Tactics')+' — '+combatant.name;
+ content.textContent=(isDrive?parsedDrive(combatant):parsedTactics(combatant))||'Not specified.';
+ if(dialog.open)dialog.close();
+ dialog.showModal();
 }
 function createInstance(master,existing){
  const c=ensure();if(!c)return null;
@@ -213,12 +257,20 @@ function renderBestiary(){
   }catch(error){showError(error)}finally{b.disabled=false}
  });
  container.querySelectorAll('[data-combat-edit]').forEach(b=>b.onclick=()=>editCombat(b.dataset.combatEdit));
- container.querySelectorAll('[data-combat-hp]').forEach(b=>b.onclick=async()=>{
-  await syncNPCsFromScene(true);const x=c.combatants.find(t=>t.id===b.dataset.combatHp);if(!x)return;
-  const response=prompt('New current HP for '+x.name+':',String(x.hp));if(response===null)return;
-  const hp=Number(response);if(!Number.isInteger(hp))return alert('Enter a whole number for HP.');
-  x.hp=hp;x.npcUpdatedAt=Math.max(Date.now(),Number(x.npcUpdatedAt||0)+1);save();renderBestiary();
-  try{if(window.RPGNPCBattlefield?.ready&&x.tokenLinks?.[window.RPGNPCBattlefield.roomId])await window.RPGNPCBattlefield.updateHUD(x)}catch(error){showError(error)}
+ container.querySelectorAll('[data-combat-hp]').forEach(input=>input.onchange=async()=>{
+  const x=c.combatants.find(t=>t.id===input.dataset.combatHp);if(!x)return;
+  const value=input.value.trim(),hp=Number(value);
+  if(!value||!Number.isInteger(hp)){input.value=String(x.hp);return alert('Enter a whole number for HP.')}
+  input.disabled=true;
+  try{
+   // Read any newer token controls before applying this direct change.
+   await syncNPCsFromScene(true);
+   x.hp=hp;x.npcUpdatedAt=Math.max(Date.now(),Number(x.npcUpdatedAt||0)+1);
+   save();
+   if(window.RPGNPCBattlefield?.ready&&x.tokenLinks?.[window.RPGNPCBattlefield.roomId])await window.RPGNPCBattlefield.updateHUD(x);
+   renderBestiary();
+  }catch(error){showError(error);renderBestiary()}
+  finally{input.disabled=false}
  });
  container.querySelectorAll('[data-combat-spawn]').forEach(b=>b.onclick=async()=>{
   const x=c.combatants.find(t=>t.id===b.dataset.combatSpawn);if(!x)return;
@@ -238,18 +290,21 @@ function renderBestiary(){
   const copy=structuredClone(x);copy.id=uid();copy.name=name.trim();delete copy.templateId;delete copy.tokenLinks;delete copy.createdAt;
   state.bestiary.push(copy);save();hideEditors();setPane('bestiary');renderBestiary();
  });
- container.querySelectorAll('[data-combat-remove]').forEach(b=>b.onclick=async()=>{
-  const x=c.combatants.find(t=>t.id===b.dataset.combatRemove);if(!x)return;
-  if(!confirm('Remove this combatant’s token, HUD, and active combatant? The Bestiary entry will remain.'))return;
-  try{if(!await window.RPGNPCBattlefield.remove(x))throw Error('No linked token was found in the current scene.');c.combatants=c.combatants.filter(t=>t.id!==x.id);save();renderBestiary()}catch(error){showError(error)}
- });
  container.querySelectorAll('[data-combat-delete]').forEach(b=>b.onclick=async()=>{
   const x=c.combatants.find(t=>t.id===b.dataset.combatDelete);if(!x)return;
-  if(!confirm('Delete '+x.name+' from the active combatants? This does not change the Bestiary.'))return;
-  if(x.tokenLinks&&Object.keys(x.tokenLinks).length&&window.RPGNPCBattlefield?.ready){
-   try{await window.RPGNPCBattlefield.remove(x)}catch(error){showError(error);return}
+  if(!confirm('Remove '+x.name+' and its battlefield token? The Bestiary entry stays.'))return;
+  const engine=window.RPGNPCBattlefield;
+  if(Object.keys(x.tokenLinks||{}).length){
+   if(!engine?.ready)return alert('Open the linked Owlbear room as GM to remove this token and its combatant.');
+   if(x.tokenLinks[engine.roomId]){
+    try{await engine.remove(x)}catch(error){showError(error);return}
+   }else return alert('This combatant has a token in another Owlbear room. Remove it from that room first.');
   }
   c.combatants=c.combatants.filter(t=>t.id!==x.id);save();renderBestiary();
+ });
+ container.querySelectorAll('[data-combat-popup]').forEach(b=>b.onclick=()=>{
+  const x=c.combatants.find(t=>t.id===b.dataset.combatId);
+  if(x)showCombatPopup(x,b.dataset.combatPopup);
  });
 }
 $('gmToolsBestiary').onclick=()=>setPane('bestiary');
