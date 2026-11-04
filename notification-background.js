@@ -6,7 +6,7 @@ const pending=[];
 let flushTimer=null;
 const allowedKinds=new Set([
  'quest-posted','quest-accepted','objective-revealed','objective-current','objective-completed',
- 'place-discovered','people-note','place-note','quest-note','note-reply','note-deleted','session-journal'
+ 'place-discovered','people-note','place-note','quest-note','note-reply','note-deleted','session-journal','gm-broadcast'
 ]);
 
 function queueNotification(message){
