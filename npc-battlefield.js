@@ -40,7 +40,7 @@ function buildNPCNameLabel(combatant,token,bounds){
   .textAlign('CENTER').fillColor('#ffffff')
   .strokeColor('#000000').strokeOpacity(1).strokeWidth(2)
   .backgroundColor('#151515').backgroundOpacity(0).padding(0).cornerRadius(0)
-  .position({x:bounds.center.x,y:bounds.max.y-Math.max(12,bounds.height*.11)+4})
+  .position({x:bounds.center.x,y:bounds.max.y-Math.max(12,bounds.height*.11)+14})
   .layer('ATTACHMENT').attachedTo(token.id).locked(true).disableHit(true)
   .metadata(metadata(combatant,'npc-name')).build();
 }
