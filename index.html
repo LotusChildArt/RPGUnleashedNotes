@@ -192,13 +192,22 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 <div class="field"><label for="calendarDayNames">Day names (comma-separated, optional)</label><input id="calendarDayNames" placeholder="Firstday, Secondday, ..."></div>
 <div class="field"><label for="calendarWeekOffset">Starting day offset (0 = first grouping day)</label><input id="calendarWeekOffset" type="number" min="0" value="1"></div>
 </div><div class="actions"><button class="primary" id="calendarFormSave">Save Calendar</button><button id="calendarCancel">Cancel</button></div></div></div></section></section>
-<section id="gmTools" class="hidden camp-pane"><nav class="tabs" id="gmToolsTabs"><button class="tab active" id="gmToolsBestiary">Bestiary</button><button class="tab" id="gmToolsCombat">Combatants</button></nav>
+<section id="gmTools" class="hidden camp-pane"><nav class="tabs" id="gmToolsTabs"><button class="tab active" id="gmToolsBestiary">Bestiary</button><button class="tab" id="gmToolsCombat">Combatants</button><button class="tab" id="gmToolsBroadcast">Broadcast</button></nav>
 <section id="gmBestiaryPane">
 <div class="panel"><div class="group-head"><h2>Bestiary</h2><button class="small" id="npcAddBestiary">+ Creature / NPC</button></div><p class="muted">Reusable stat blocks across your campaigns. Spawning creates independently editable copies.</p><div class="field"><label for="npcBestiarySearch">Search Bestiary</label><input id="npcBestiarySearch" placeholder="Search by name, role, race or notes"></div><div id="npcBestiaryList"></div></div>
 <div class="panel hidden" id="npcBestiaryEditor"><div class="group-head"><h2 id="npcBestiaryEditTitle">Bestiary Entry</h2><button class="small" id="npcBestiaryCancel">← Bestiary</button></div><div id="npcBestiaryFields" class="place-form"></div><div class="actions"><button class="primary" id="npcBestiarySave">Save Bestiary Entry</button><button id="npcBestiaryDiscard">Cancel</button></div></div>
 </section>
 <section id="gmCombatPane" class="hidden"><div class="panel"><div class="group-head"><h2>Active Combatants</h2><button class="small" id="npcGoBestiary">+ Spawn from Bestiary</button></div><p class="muted">Each spawned copy has independent HP, DR, conditions and other stats. Owlbear tokens are GM-controlled.</p><div id="npcCombatantList"></div></div>
 <div class="panel hidden" id="npcCombatEditor"><div class="group-head"><h2>Edit Combatant</h2><button class="small" id="npcCombatCancel">← Combatants</button></div><div id="npcCombatFields" class="place-form"></div><div class="actions"><button class="primary" id="npcCombatSave">Save Combatant</button><button id="npcCombatDiscard">Cancel</button></div><p id="npcCombatFeedback" class="result" aria-live="polite"></p></div></div></section>
+<section id="gmBroadcastPane" class="hidden">
+ <div class="panel">
+  <h2>Broadcast</h2>
+  <p class="muted">Send a notification to everyone in this Owlbear room using the same notification system as campaign announcements.</p>
+  <div class="field"><label for="gmBroadcastMessage">Message</label><textarea id="gmBroadcastMessage" rows="5" maxlength="220" placeholder="Type your announcement here…"></textarea></div>
+  <div class="actions"><button class="primary" id="gmBroadcastSend" type="button">Send Broadcast</button></div>
+  <p id="gmBroadcastStatus" class="muted" role="status" aria-live="polite"></p>
+ </div>
+</section>
 </section>
 <section id="settings" class="hidden camp-pane"><div class="panel"><h2>Options</h2><div class="main-menu-actions"><button id="campaignGoHome" class="main-menu-button">Main Menu</button><button id="campaignGoList" class="main-menu-button">Campaigns</button></div><button id="editCampaignDetails" class="main-menu-button" style="margin-top:12px">Edit Campaign Details</button><div id="campaignDetailsForm" class="place-form hidden" style="margin-top:12px"><div class="field"><label for="editCampaignName">Campaign name</label><input id="editCampaignName"></div><div class="field"><label for="editCampaignGM">GM name</label><input id="editCampaignGM"></div><div class="actions"><button id="saveCampaignDetails" class="primary">Save Changes</button><button id="cancelCampaignDetails">Cancel</button></div></div><div class="field" style="margin-top:18px"><label for="campaignThemeToggle">Theme</label><select id="campaignThemeToggle"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select></div>
 <div id="cloudPanel" class="place-hub-section">
