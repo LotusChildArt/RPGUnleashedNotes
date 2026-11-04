@@ -19,6 +19,26 @@ const defaultRecord=()=>({id:uid(),name:'',role:'',race:'',level:1,bod:0,dex:0,m
 const gm=()=>state.role==='gm'&&owlAccessRole!=='PLAYER'&&owlAccessRole!=='UNKNOWN';
 let pane='bestiary',editMasterId=null,editCombatId=null;
 let npcPullRunning=false,lastNPCPull=0;
+function startNPCDeletionWatch(){
+ const engine=window.RPGNPCBattlefield;
+ if(!gm()||!engine?.ready||!engine.watchNPCTokens)return;
+ const records=state.campaigns.flatMap(c=>c.combatants||[]);
+ engine.watchNPCTokens(records,removed=>{
+  if(!gm())return;
+  const removedIds=new Set(removed.map(x=>x.tokenId));
+  let changed=false;
+  for(const campaign of state.campaigns){
+   const combatants=campaign.combatants||[];
+   const remaining=combatants.filter(c=>!removedIds.has(c.tokenLinks?.[engine.roomId]));
+   if(remaining.length!==combatants.length){campaign.combatants=remaining;changed=true}
+  }
+  if(changed){
+   // Keep reusable Bestiary templates intact; only deployed combatants disappear.
+   if(editCombatId&&!(current()?.combatants||[]).some(c=>c.id===editCombatId))hideEditors();
+   save();renderBestiary();
+  }
+ });
+}
 async function syncNPCsFromScene(force=false){
  const engine=window.RPGNPCBattlefield;
  if(!gm()||!engine?.ready||npcPullRunning||(!force&&Date.now()-lastNPCPull<2500))return;
@@ -198,8 +218,8 @@ function renderBestiary(){
  });
  container.querySelectorAll('[data-combat-remove]').forEach(b=>b.onclick=async()=>{
   const x=c.combatants.find(t=>t.id===b.dataset.combatRemove);if(!x)return;
-  if(!confirm('Remove this combatant’s token and its HUD from the current Owlbear scene?'))return;
-  try{if(!await window.RPGNPCBattlefield.remove(x))throw Error('No linked token was found in the current scene.');save();renderBestiary()}catch(error){showError(error)}
+  if(!confirm('Remove this combatant’s token, HUD, and active combatant? The Bestiary entry will remain.'))return;
+  try{if(!await window.RPGNPCBattlefield.remove(x))throw Error('No linked token was found in the current scene.');c.combatants=c.combatants.filter(t=>t.id!==x.id);save();renderBestiary()}catch(error){showError(error)}
  });
  container.querySelectorAll('[data-combat-delete]').forEach(b=>b.onclick=async()=>{
   const x=c.combatants.find(t=>t.id===b.dataset.combatDelete);if(!x)return;
@@ -237,7 +257,8 @@ $('npcCombatSave').onclick=async()=>{
  }catch(error){showError(error)}
 };
 window.rpgBestiaryRender=renderBestiary;
-window.addEventListener('rpg-npc-owlbear-state',()=>{renderBestiary();syncNPCsFromScene(true)});
+window.addEventListener('rpg-npc-owlbear-state',()=>{startNPCDeletionWatch();renderBestiary();syncNPCsFromScene(true)});
 setInterval(()=>{if(!$('gmTools').classList.contains('hidden')&&pane==='combat')syncNPCsFromScene()},5000);
 renderBestiary();
+if(window.RPGNPCBattlefield?.ready)startNPCDeletionWatch();
 })();
