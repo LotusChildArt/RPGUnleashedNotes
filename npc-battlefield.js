@@ -205,7 +205,7 @@ async function updatePlayerCombat(player,values){
  for(const key of fields)if(Object.prototype.hasOwnProperty.call(values,key)){
   if(key==='conditions'){
    const text=String(values[key]??'').trim();
-   if(text.length>300||text.split(',').some(part=>part.trim()&&!/^[a-z][a-z-]*(?::[0-9]+)?$/i.test(part.trim())))throw Error('Conditions must be comma-separated condition IDs, optionally followed by :stacks.');
+   if(text.length>300||text.split(',').some(part=>part.trim()&&!/^[a-z][a-z -]*(?::[0-9]+)?$/i.test(part.trim())))throw Error('Conditions must be comma-separated condition IDs, optionally followed by :stacks.');
    safe[key]=text;continue;
   }
   const value=Number(values[key]);
