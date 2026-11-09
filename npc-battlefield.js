@@ -80,7 +80,7 @@ async function updateHUD(c){
   }
  });
  const prior=await OBR.scene.items.getItems(item=>item.metadata?.[HUD_KEY]?.combatantId===c.id&&item.metadata?.[HUD_KEY]?.roomId===roomId);
- if(prior.length)await OBR.scene.items.deleteItems(prior.map(x=>x.id));
+ if(prior.length)await OBR.scene.items.deleteItems(prior.filter(x=>x.metadata?.[HUD_KEY]?.kind!=='turn-marker').map(x=>x.id));
  const bounds=await OBR.scene.items.getItemBounds([token.id]),dpi=await OBR.scene.grid.getDpi();
  const width=Math.max(115,bounds.width*1.12),height=width*40/300,gap=Math.max(3,bounds.height*.025);
  const iconWidth=Math.max(26,bounds.width*.28),iconHeight=iconWidth*63/72;
