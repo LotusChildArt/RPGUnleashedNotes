@@ -285,6 +285,8 @@ function showCategory(category){
  $('npcCategoryContents').innerHTML=category==='npcs'?npcPeopleList():categoryGroups(category);
  const dialog=$('npcCategoryDialog');
  if(!dialog.open)dialog.showModal();
+ // Bind commands for the newly generated modal entries as well as the main pane.
+ renderBestiary();
 }
 function broadcastHistory(){
  const room=window.RPGNPCBattlefield?.roomId;
