@@ -165,6 +165,28 @@ async function remove(c){
  watchedTokens.delete(token.id);seenTokenIds.delete(token.id);
  return true;
 }
+
+async function setTurnMarker(combatant){
+ if(!await connection())return false;
+ const previous=await OBR.scene.items.getItems(item=>
+  item.metadata?.[HUD_KEY]?.roomId===roomId&&item.metadata?.[HUD_KEY]?.kind==='turn-marker');
+ if(previous.length)await OBR.scene.items.deleteItems(previous.map(x=>x.id));
+ if(!combatant)return true;
+ const token=await getExistingToken(combatant);
+ if(!token)return false;
+ const bounds=await OBR.scene.items.getItemBounds([token.id]);
+ const size=Math.max(46,Math.min(90,bounds.width*.38));
+ const marker=buildText().plainText('▼').textType('PLAIN')
+  .width(size*1.5).height(size).padding(0).fontSize(46).fontWeight(900)
+  .textAlign('CENTER').textAlignVertical('MIDDLE')
+  .fillColor('#ffda43').fillOpacity(1).strokeColor('#171717')
+  .strokeOpacity(1).strokeWidth(5)
+  .position({x:bounds.center.x,y:bounds.min.y-size*.70})
+  .layer('ATTACHMENT').attachedTo(token.id).locked(true).disableHit(true)
+  .metadata(metadata(combatant,'turn-marker')).build();
+ await OBR.scene.items.addItems([marker]);
+ return true;
+}
 async function status(c){if(!await connection())return false;return !!await getExistingToken(c)}
 // Only Character-layer token disappearance counts, not attachment HUD changes.
 function watchNPCTokens(records,onDeleted){
@@ -201,7 +223,7 @@ async function pull(c){
  c.npcUpdatedAt=remoteTime;
  return true;
 }
-window.RPGNPCBattlefield={spawn,updateHUD,remove,status,pull,watchNPCTokens,get ready(){return ready},get roomId(){return roomId}};
+window.RPGNPCBattlefield={spawn,updateHUD,setTurnMarker,remove,status,pull,watchNPCTokens,get ready(){return ready},get roomId(){return roomId}};
 if(OBR.isAvailable)OBR.onReady(async()=>{
  try{roomId=OBR.room.id;ready=(await OBR.player.getRole())==='GM';announce();
  OBR.player.onChange(p=>{ready=p.role==='GM';if(!ready&&tokenWatch){tokenWatch();tokenWatch=null}announce()});
