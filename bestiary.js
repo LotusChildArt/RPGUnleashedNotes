@@ -332,6 +332,7 @@ function playerHTML(x){
 }
 
 function setPane(to){
+ if(to!=='bestiary'&&$('npcCategoryDialog')?.open)$('npcCategoryDialog').close();
  pane=to;
  $('gmBestiaryPane').classList.toggle('hidden',to!=='bestiary');
  $('gmCombatPane').classList.toggle('hidden',to!=='combat');
@@ -594,11 +595,11 @@ function renderBestiary(){
  container.querySelectorAll('[data-master-edit]').forEach(b=>b.onclick=()=>editMaster(b.dataset.masterEdit));
  container.querySelectorAll('[data-master-duplicate]').forEach(b=>b.onclick=()=>{
   const x=state.bestiary.find(t=>t.id===b.dataset.masterDuplicate);if(!x)return;
-  const copy=structuredClone(x);copy.id=uid();copy.name+=' (Variant)';state.bestiary.push(copy);save();renderBestiary();
+  const copy=structuredClone(x);copy.id=uid();copy.name+=' (Variant)';state.bestiary.push(copy);save();renderBestiary();if($('npcCategoryDialog').open)showCategory(categoryPane);
  });
  container.querySelectorAll('[data-master-delete]').forEach(b=>b.onclick=()=>{
   if(!confirm('Delete this Bestiary entry? Existing combatants will remain.'))return;
-  state.bestiary=state.bestiary.filter(x=>x.id!==b.dataset.masterDelete);save();renderBestiary();
+  state.bestiary=state.bestiary.filter(x=>x.id!==b.dataset.masterDelete);save();renderBestiary();if($('npcCategoryDialog').open)showCategory(categoryPane);
  });
  container.querySelectorAll('[data-master-prepare]').forEach(b=>b.onclick=()=>{
   const x=state.bestiary.find(t=>t.id===b.dataset.masterPrepare);if(!x)return;
