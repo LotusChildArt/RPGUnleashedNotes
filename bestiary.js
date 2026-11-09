@@ -311,9 +311,10 @@ async function syncLinkedPlayers(force=false){
    if(!bridge||bridge.pendingPatch||!bridge.stats)continue;
    const version=Number(bridge.sheetRevision||0);
    const rejected=bridge.rejectedPatchId&&bridge.rejectedPatchId!==player.lastRejectedPatchId;
-   if(rejected){player.lastRejectedPatchId=bridge.rejectedPatchId;player.syncConflict=bridge.rejectionReason||'A newer sheet version prevented the GM edit.';changed=true}
+   if(rejected){player.lastRejectedPatchId=bridge.rejectedPatchId;player.syncConflict=bridge.rejectionReason||'A newer sheet version prevented the GM edit.';player.pendingSync=false;changed=true}
    if(bridge.acknowledgedPatchId&&bridge.acknowledgedPatchId!==player.lastAcknowledgedPatchId){
     player.lastAcknowledgedPatchId=bridge.acknowledgedPatchId;
+    if(player.pendingSync){player.pendingSync=false;changed=true}
     if(player.syncConflict){delete player.syncConflict;changed=true}
    }
    if(!rejected&&version===Number(player.linkedSheetRevision??-1)&&bridge.updatedAt===player.linkedUpdatedAt)continue;
@@ -390,6 +391,7 @@ function playerHTML(x){
   '<div class="npc-combat-vitals">'+vital('Armor DR','drArmor')+vital('Natural DR','drNatural')+vital('Magic DR','drMagic')+'</div>'+
   '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+'</div>'+
   '<label class="npc-player-conditions">Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label>'+
+  (x.pendingSync?'<p class="muted" style="font-size:11px">⏳ Waiting for Chara to apply the GM update.</p>':'')+
   (x.syncConflict?'<p class="muted" role="alert" style="font-size:11px;color:#b45309">'+escapeHTML(x.syncConflict)+'</p>':'')+
   (linked?'<p class="muted" style="font-size:11px">Combat values sync with Chara while its owner is connected.</p>':'')+'</article>';
 }
@@ -731,7 +733,7 @@ function renderBestiary(){
    try{await window.RPGNPCBattlefield.updatePlayerCombat(player,{[field]:value})}
    catch(error){showError(error);input.disabled=false;renderBestiary();return}
   }
-  player[field]=value;save();renderBestiary();
+  player[field]=value;if(player.tokenId){player.pendingSync=true;delete player.syncConflict}save();renderBestiary();
  });
  container.querySelectorAll('[data-master-edit]').forEach(b=>b.onclick=()=>editMaster(b.dataset.masterEdit));
  container.querySelectorAll('[data-master-duplicate]').forEach(b=>b.onclick=()=>{
