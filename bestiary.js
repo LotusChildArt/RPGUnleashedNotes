@@ -535,9 +535,62 @@ function renderBestiary(){
  const term=$('npcBestiarySearch').value.trim().toLowerCase();
  const matches=state.bestiary.filter(x=>[x.name,x.role,x.race,x.notes].some(s=>String(s||'').toLowerCase().includes(term)));
  $('npcBestiaryList').innerHTML=matches.map(masterHTML).join('')||'<p class="muted">'+(state.bestiary.length?'No matching creatures.':'No entries yet. Use + Creature / NPC to begin.')+'</p>';
- $('npcCombatantList').innerHTML=c.combatants.map(combatHTML).join('')||'<p class="muted">No active combatants. Add one from the Bestiary.</p>';
+ const turnOrder=initiativeHTML(c);
+ $('npcCombatantList').innerHTML=turnOrder.map(x=>x.npc?combatHTML(x.npc):playerHTML(x.player)).join('')||'<p class="muted">No active combatants. Add one from the Bestiary.</p>';
+ if(!$('gmBroadcastHistory').classList.contains('hidden'))broadcastHistory();
  $('npcAddBestiary').disabled=false;setPane(pane);
  const container=$('gmTools');
+
+ container.querySelectorAll('[data-bestiary-category]').forEach(b=>b.onclick=()=>showCategory(b.dataset.bestiaryCategory));
+ container.querySelectorAll('[data-person-create]').forEach(b=>b.onclick=()=>{
+  const person=c.people.find(p=>p.id===b.dataset.personCreate);if(!person)return;
+  const record=defaultRecord();
+  record.name=person.name;record.role=person.role||'NPC';record.race=person.race||'';
+  record.category='npcs';record.faction='People';
+  state.bestiary.push(record);person.npcTemplateId=record.id;save();
+  $('npcCategoryDialog').close();editMaster(record.id);
+ });
+ container.querySelectorAll('[data-person-duplicate]').forEach(b=>b.onclick=()=>{
+  const person=c.people.find(p=>p.id===b.dataset.personDuplicate);if(!person)return;
+  const candidates=state.bestiary.filter(x=>bestiaryCategory(x)==='enemies');
+  if(!candidates.length)return alert('Create an Enemy stat block first.');
+  const listing=candidates.map((x,i)=>(i+1)+'. '+x.name+' (Level '+x.level+')').join('\n');
+  const choice=prompt('Copy which Enemy stat block for '+person.name+'?\n'+listing,'1');
+  if(choice===null)return;
+  const index=Number(choice)-1;if(!Number.isInteger(index)||!candidates[index])return alert('Choose a number from the list.');
+  const copy=structuredClone(candidates[index]);
+  copy.id=uid();copy.name=person.name;copy.role=person.role||copy.role;copy.category='npcs';
+  copy.faction='People';copy.race=person.race||copy.race;
+  state.bestiary.push(copy);person.npcTemplateId=copy.id;save();
+  $('npcCategoryDialog').close();editMaster(copy.id);
+ });
+ container.querySelectorAll('[data-person-spawn]').forEach(b=>b.onclick=async()=>{
+  const person=c.people.find(p=>p.id===b.dataset.personSpawn);if(!person)return;
+  const template=state.bestiary.find(x=>x.id===person.npcTemplateId);
+  if(!template)return alert('Assign a stat block using Create Stat Block or Copy Enemy Stat Block before spawning.');
+  const item=createInstance(template,true);item.name=person.name;item.personId=person.id;
+  try{await spawnInstance(item);$('npcCategoryDialog').close();hideEditors();setPane('combat');renderBestiary()}
+  catch(error){c.combatants=c.combatants.filter(x=>x.id!==item.id);save();showError(error)}
+ });
+ container.querySelectorAll('[data-initiative-value]').forEach(input=>input.onchange=()=>{
+  const raw=input.value.trim();
+  if(raw!==''&&(!Number.isInteger(Number(raw))||Math.abs(Number(raw))>100000))return alert('Initiative must be a whole number.');
+  c.initiative.values[input.dataset.initiativeValue]=raw===''?0:Number(raw);
+  save();renderBestiary();
+ });
+ container.querySelectorAll('[data-initiative-remove]').forEach(b=>b.onclick=()=>{
+  c.initiative.players=c.initiative.players.filter(x=>x.id!==b.dataset.initiativeRemove);
+  delete c.initiative.values[b.dataset.initiativeRemove];
+  if(c.initiative.activeId===b.dataset.initiativeRemove)c.initiative.activeId=null;
+  save();renderBestiary();
+ });
+ container.querySelectorAll('[data-player-stat]').forEach(input=>input.onchange=()=>{
+  const player=c.initiative.players.find(x=>x.id===input.dataset.playerStat);if(!player)return;
+  const field=input.dataset.playerField;
+  const value=field==='conditions'?input.value.trim():Number(input.value);
+  if(field!=='conditions'&&(!Number.isInteger(value)||input.value.trim()===''))return alert('Enter a whole number.');
+  player[field]=value;save();renderBestiary();
+ });
  container.querySelectorAll('[data-master-edit]').forEach(b=>b.onclick=()=>editMaster(b.dataset.masterEdit));
  container.querySelectorAll('[data-master-duplicate]').forEach(b=>b.onclick=()=>{
   const x=state.bestiary.find(t=>t.id===b.dataset.masterDuplicate);if(!x)return;
@@ -644,6 +697,47 @@ function renderBestiary(){
   if(x)showCombatPopup(x,b.dataset.combatPopup);
  });
 }
+
+$('npcAddInitiativePlayer').onclick=()=>{
+ const c=ensure();if(!gm()||!c)return;
+ const name=prompt('Player character name:');if(!name?.trim())return;
+ const player={id:uid(),name:name.trim(),hp:0,drArmor:0,mana:0,conditions:'',bod:'—',dex:'—',mnd:'—',cha:'—'};
+ // Optional manual core stats, never imply these represent the player's synced Chara sheet.
+ const data=prompt('Core stats (HP, DR, Mana, BOD, DEX, MND, CHA), comma-separated. Leave blank for zero/unknown.','');
+ if(data===null)return;
+ const parts=data.split(',').map(s=>s.trim());
+ ['hp','drArmor','mana','bod','dex','mnd','cha'].forEach((key,i)=>{
+  if(parts[i]!==undefined&&parts[i]!==''&&Number.isFinite(Number(parts[i])))player[key]=Number(parts[i]);
+ });
+ c.initiative ||= {values:{},players:[],activeId:null,round:1};
+ c.initiative.players.push(player);
+ save();renderBestiary();
+};
+$('npcNextTurn').onclick=async()=>{
+ const c=ensure();if(!gm()||!c)return;
+ const order=initiativeEntries(c);
+ if(!order.length)return;
+ const active=c.initiative.activeId;
+ const index=order.findIndex(x=>x.id===active);
+ const next=active&&order.length>1?order[1]:order[0];
+ // initiativeEntries rotates the active character to the beginning.
+ if(active&&order.length===1)c.initiative.round=(c.initiative.round||1)+1;
+ else if(active&&index===0){
+  const sorted=[...order].sort((a,b)=>Number(c.initiative.values[b.id]||0)-Number(c.initiative.values[a.id]||0)||a.name.localeCompare(b.name));
+  if(next?.id===sorted[0]?.id)c.initiative.round=(c.initiative.round||1)+1;
+ }
+ c.initiative.activeId=next.id;
+ save();renderBestiary();
+ try{await window.RPGNPCBattlefield?.setTurnMarker?.(next.npc||null)}catch(error){console.warn('Could not update active token marker',error)}
+};
+$('gmBroadcastHistoryToggle').onclick=()=>{
+ const panel=$('gmBroadcastHistory'),expanded=panel.classList.toggle('hidden')===false;
+ $('gmBroadcastHistoryToggle').textContent=(expanded?'▾':'▸')+' Announcement history';
+ $('gmBroadcastHistoryToggle').setAttribute('aria-expanded',String(expanded));
+ if(expanded)broadcastHistory();
+};
+window.addEventListener('rpg-notes-history-updated',()=>{if(!$('gmBroadcastHistory').classList.contains('hidden'))broadcastHistory()});
+window.addEventListener('storage',event=>{if(event.key==='RPGUnleashedNotes.broadcastHistory.v1'&&!$('gmBroadcastHistory').classList.contains('hidden'))broadcastHistory()});
 $('gmToolsBestiary').onclick=()=>setPane('bestiary');
 $('gmToolsCombat').onclick=()=>setPane('combat');
 $('gmToolsBroadcast').onclick=()=>setPane('broadcast');
