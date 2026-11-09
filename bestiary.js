@@ -310,7 +310,13 @@ async function syncLinkedPlayers(force=false){
    const bridge=await engine.playerTokenSnapshot(player);
    if(!bridge||bridge.pendingPatch||!bridge.stats)continue;
    const version=Number(bridge.sheetRevision||0);
-   if(version===Number(player.linkedSheetRevision??-1)&&bridge.updatedAt===player.linkedUpdatedAt)continue;
+   const rejected=bridge.rejectedPatchId&&bridge.rejectedPatchId!==player.lastRejectedPatchId;
+   if(rejected){player.lastRejectedPatchId=bridge.rejectedPatchId;player.syncConflict=bridge.rejectionReason||'A newer sheet version prevented the GM edit.';changed=true}
+   if(bridge.acknowledgedPatchId&&bridge.acknowledgedPatchId!==player.lastAcknowledgedPatchId){
+    player.lastAcknowledgedPatchId=bridge.acknowledgedPatchId;
+    if(player.syncConflict){delete player.syncConflict;changed=true}
+   }
+   if(!rejected&&version===Number(player.linkedSheetRevision??-1)&&bridge.updatedAt===player.linkedUpdatedAt)continue;
    const stats=bridge.stats;
    for(const key of ['name','bod','dex','mnd','cha','hp','hpMax','mana','manaMax',
     'drArmor','drNatural','drMagic','attack','defense','conditions']){
@@ -384,6 +390,7 @@ function playerHTML(x){
   '<div class="npc-combat-vitals">'+vital('Armor DR','drArmor')+vital('Natural DR','drNatural')+vital('Magic DR','drMagic')+'</div>'+
   '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+'</div>'+
   '<label class="npc-player-conditions">Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label>'+
+  (x.syncConflict?'<p class="muted" role="alert" style="font-size:11px;color:#b45309">'+escapeHTML(x.syncConflict)+'</p>':'')+
   (linked?'<p class="muted" style="font-size:11px">Combat values sync with Chara while its owner is connected.</p>':'')+'</article>';
 }
 
