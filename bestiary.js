@@ -296,6 +296,53 @@ function broadcastHistory(){
   '<div class="gm-history-row"><time>'+escapeHTML(new Date(x.at).toLocaleString())+'</time><p>'+escapeHTML(x.message)+'</p></div>')
   .join('')||'<p class="muted">No announcements recorded yet in this room. New notifications will appear here as they arrive.</p>';
 }
+
+let playerSyncBusy=false,lastPlayerSync=0;
+async function syncLinkedPlayers(force=false){
+ const engine=window.RPGNPCBattlefield,c=current();
+ if(!gm()||!engine?.ready||!c?.initiative?.players?.length||playerSyncBusy||
+    (!force&&Date.now()-lastPlayerSync<1800))return;
+ playerSyncBusy=true;lastPlayerSync=Date.now();
+ try{
+  let changed=false;
+  for(const player of c.initiative.players){
+   if(!player.tokenId)continue;
+   const bridge=await engine.playerTokenSnapshot(player);
+   if(!bridge||bridge.pendingPatch||!bridge.stats)continue;
+   const version=Number(bridge.sheetRevision||0);
+   if(version===Number(player.linkedSheetRevision||-1)&&bridge.updatedAt===player.linkedUpdatedAt)continue;
+   const stats=bridge.stats;
+   for(const key of ['name','bod','dex','mnd','cha','hp','hpMax','mana','manaMax',
+    'drArmor','drNatural','drMagic','attack','defense','conditions']){
+    const value=stats[key];
+    if(value!==null&&value!==undefined&&value!==''&&player[key]!==value){
+     player[key]=value;changed=true;
+    }
+   }
+   player.linkedSheetRevision=version;
+   player.linkedUpdatedAt=bridge.updatedAt;
+  }
+  if(changed){save();renderBestiary()}
+ }catch(error){console.warn('Could not synchronize Chara player cards',error)}
+ finally{playerSyncBusy=false}
+}
+async function linkPlayerToken(existing=null){
+ const engine=window.RPGNPCBattlefield;
+ if(!gm()||!engine?.ready)return alert('Open Notes as GM in an active Owlbear room.');
+ try{
+  const link=await engine.selectedCharaToken(),c=ensure();
+  const duplicate=c.initiative?.players?.find(x=>x.tokenId===link.tokenId&&x.id!==existing?.id);
+  if(duplicate)throw Error('This Chara token is already in initiative as '+duplicate.name+'.');
+  const player=existing||{id:uid(),name:'Linked player',hp:0,hpMax:0,mana:0,manaMax:0,drArmor:0,drNatural:0,drMagic:0,conditions:''};
+  if(!existing){c.initiative ||= {values:{},players:[],activeId:null,round:1};c.initiative.players.push(player)}
+  player.tokenId=link.tokenId;player.characterId=link.characterId;player.ownerId=link.ownerId;
+  player.linkedSheetRevision=-1;player.linkedUpdatedAt=null;
+  if(link.stats)for(const [key,value] of Object.entries(link.stats)){
+   if(value!==null&&value!==undefined&&value!=='')player[key]=value;
+  }
+  save();renderBestiary();await syncLinkedPlayers(true);
+ }catch(error){showError(error)}
+}
 function initiativeEntries(c){
  c.initiative ||= {values:{},players:[],activeId:null,round:1};
  const t=c.initiative;
@@ -327,13 +374,19 @@ function playerHTML(x){
  const id=escapeHTML(x.id);
  const info=(label,value)=>'<div class="npc-combat-detail"><span>'+label+'</span><strong>'+escapeHTML(value===''||value==null?'—':value)+'</strong></div>';
  const vital=(label,field)=>'<label class="npc-player-vital">'+label+' <input data-player-stat="'+id+'" data-player-field="'+field+'" type="number" step="1" value="'+escapeHTML(x[field]??0)+'" aria-label="'+label+' for '+escapeHTML(x.name)+'"></label>';
+ const linked=!!x.tokenId;
  return '<article class="entry npc-entry npc-player-card npc-combat-card">'+
-  '<div class="npc-combat-head"><div><h3>'+escapeHTML(x.name)+'</h3><p class="subtle-info">Player character</p></div></div>'+
+  '<div class="npc-combat-head"><div><h3>'+escapeHTML(x.name)+'</h3><p class="subtle-info">'+(linked?'🔗 Linked to Chara':'Player character — manual')+'</p></div>'+
+  '<div class="npc-actions"><button class="small" data-player-link="'+id+'">'+(linked?'Relink Token':'Link Token')+'</button>'+
+  (linked?'<button class="small" data-player-unlink="'+id+'">Unlink</button>':'')+'</div></div>'+
   '<div class="npc-combat-attributes">'+['bod','dex','mnd','cha'].map(key=>'<span>'+key.toUpperCase()+' '+escapeHTML(x[key]??'—')+'</span>').join('')+'</div>'+
-  '<div class="npc-combat-vitals">'+vital('HP','hp')+vital('DR','drArmor')+vital('Mana','mana')+'</div>'+
+  '<div class="npc-combat-vitals">'+vital('HP','hp')+vital('Max HP','hpMax')+vital('Mana','mana')+vital('Max Mana','manaMax')+'</div>'+
+  '<div class="npc-combat-vitals">'+vital('Armor DR','drArmor')+vital('Natural DR','drNatural')+vital('Magic DR','drMagic')+'</div>'+
   '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+'</div>'+
-  '<label class="npc-player-conditions">Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label></article>';
+  '<label class="npc-player-conditions">Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label>'+
+  (linked?'<p class="muted" style="font-size:11px">Combat values sync with Chara while its owner is connected.</p>':'')+'</article>';
 }
+
 const playerWizardDefaults=()=>({name:'',bod:'',dex:'',mnd:'',cha:'',hp:'',drArmor:'',mana:'',attack:'',defense:''});
 let playerWizardStep=0,playerWizardData=playerWizardDefaults();
 const wizardStages=[
@@ -650,11 +703,27 @@ function renderBestiary(){
   if(c.initiative.activeId===b.dataset.initiativeRemove)c.initiative.activeId=null;
   save();renderBestiary();
  });
- container.querySelectorAll('[data-player-stat]').forEach(input=>input.onchange=()=>{
+ container.querySelectorAll('[data-player-link]').forEach(b=>b.onclick=()=>{
+  const player=c.initiative.players.find(x=>x.id===b.dataset.playerLink);
+  if(player)void linkPlayerToken(player);
+ });
+ container.querySelectorAll('[data-player-unlink]').forEach(b=>b.onclick=()=>{
+  const player=c.initiative.players.find(x=>x.id===b.dataset.playerUnlink);
+  if(!player)return;
+  delete player.tokenId;delete player.characterId;delete player.ownerId;
+  delete player.linkedSheetRevision;delete player.linkedUpdatedAt;
+  save();renderBestiary();
+ });
+ container.querySelectorAll('[data-player-stat]').forEach(input=>input.onchange=async()=>{
   const player=c.initiative.players.find(x=>x.id===input.dataset.playerStat);if(!player)return;
   const field=input.dataset.playerField;
   const value=field==='conditions'?input.value.trim():Number(input.value);
-  if(field!=='conditions'&&(!Number.isInteger(value)||input.value.trim()===''))return alert('Enter a whole number.');
+  if(field!=='conditions'&&(!Number.isSafeInteger(value)||input.value.trim()===''))return alert('Enter a whole number.');
+  if(field!=='conditions'&&player.tokenId){
+   input.disabled=true;
+   try{await window.RPGNPCBattlefield.updatePlayerCombat(player,{[field]:value})}
+   catch(error){showError(error);input.disabled=false;renderBestiary();return}
+  }
   player[field]=value;save();renderBestiary();
  });
  container.querySelectorAll('[data-master-edit]').forEach(b=>b.onclick=()=>editMaster(b.dataset.masterEdit));
@@ -765,6 +834,7 @@ function renderBestiary(){
 }
 
 $('npcAddInitiativePlayer').onclick=openPlayerWizard;
+$('npcLinkInitiativePlayer').onclick=()=>void linkPlayerToken();
 $('npcNextTurn').onclick=async()=>{
  const c=ensure();if(!gm()||!c)return;
  const order=initiativeEntries(c);
@@ -780,7 +850,7 @@ $('npcNextTurn').onclick=async()=>{
  }
  c.initiative.activeId=next.id;
  save();renderBestiary();
- try{await window.RPGNPCBattlefield?.setTurnMarker?.(next.npc||null)}catch(error){console.warn('Could not update active token marker',error)}
+ try{await window.RPGNPCBattlefield?.setTurnMarker?.(next.npc||next.player||null)}catch(error){console.warn('Could not update active token marker',error)}
 };
 $('gmBroadcastHistoryToggle').onclick=()=>{
  const panel=$('gmBroadcastHistory'),expanded=panel.classList.toggle('hidden')===false;
@@ -836,7 +906,7 @@ $('npcCombatSave').onclick=async()=>{
 window.rpgBestiaryRender=renderBestiary;
 window.addEventListener('rpg-npc-owlbear-state',()=>{consumePendingNPCDeletions();startNPCDeletionWatch();renderBestiary();syncNPCsFromScene(true)});
 window.addEventListener('storage',e=>{if(e.key===NPC_PENDING_KEY)consumePendingNPCDeletions()});
-setInterval(()=>{if(!$('gmTools').classList.contains('hidden')&&pane==='combat')syncNPCsFromScene()},5000);
+setInterval(()=>{if(!$('gmTools').classList.contains('hidden')&&pane==='combat'){syncNPCsFromScene();void syncLinkedPlayers()}},2500);
 renderBestiary();
 if(window.RPGNPCBattlefield?.ready){consumePendingNPCDeletions();startNPCDeletionWatch()}
 })();
