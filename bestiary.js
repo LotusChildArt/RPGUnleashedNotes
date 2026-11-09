@@ -325,13 +325,76 @@ function initiativeHTML(c){
 }
 function playerHTML(x){
  const id=escapeHTML(x.id);
- return '<article class="entry npc-player-card"><h3>'+escapeHTML(x.name)+'</h3>'+
+ const info=(label,value)=>'<div class="npc-combat-detail"><span>'+label+'</span><strong>'+escapeHTML(value===''||value==null?'—':value)+'</strong></div>';
+ const vital=(label,field)=>'<label class="npc-player-vital">'+label+' <input data-player-stat="'+id+'" data-player-field="'+field+'" type="number" step="1" value="'+escapeHTML(x[field]??0)+'" aria-label="'+label+' for '+escapeHTML(x.name)+'"></label>';
+ return '<article class="entry npc-entry npc-player-card npc-combat-card">'+
+  '<div class="npc-combat-head"><div><h3>'+escapeHTML(x.name)+'</h3><p class="subtle-info">Player character</p></div></div>'+
   '<div class="npc-combat-attributes">'+['bod','dex','mnd','cha'].map(key=>'<span>'+key.toUpperCase()+' '+escapeHTML(x[key]??'—')+'</span>').join('')+'</div>'+
-  '<div class="npc-combat-vitals">HP <input data-player-stat="'+id+'" data-player-field="hp" type="number" value="'+escapeHTML(x.hp??0)+'" aria-label="HP">'+
-  ' DR <input data-player-stat="'+id+'" data-player-field="drArmor" type="number" value="'+escapeHTML(x.drArmor??0)+'" aria-label="DR">'+
-  ' Mana <input data-player-stat="'+id+'" data-player-field="mana" type="number" value="'+escapeHTML(x.mana??0)+'" aria-label="Mana"></div>'+
-  '<label>Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label></article>';
+  '<div class="npc-combat-vitals">'+vital('HP','hp')+vital('DR','drArmor')+vital('Mana','mana')+'</div>'+
+  '<div class="npc-combat-grid">'+info('ATK',x.attack)+info('DEF',x.defense)+'</div>'+
+  '<label class="npc-player-conditions">Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label></article>';
 }
+const playerWizardDefaults=()=>({name:'',bod:'',dex:'',mnd:'',cha:'',hp:'',drArmor:'',mana:'',attack:'',defense:''});
+let playerWizardStep=0,playerWizardData=playerWizardDefaults();
+const wizardStages=[
+ {title:'PC Name',fields:[['name','PC name','text']]},
+ {title:'Attributes',fields:[['bod','BOD','number'],['dex','DEX','number'],['mnd','MND','number'],['cha','CHA','number']]},
+ {title:'HP, DR & Mana',fields:[['hp','HP','number'],['drArmor','DR','number'],['mana','Mana','number']]},
+ {title:'Attack & Defense',fields:[['attack','ATK Bonus','text'],['defense','DEF Bonus','text']]}
+];
+function renderPlayerWizard(){
+ const stage=wizardStages[playerWizardStep];
+ $('npcPlayerWizardTitle').textContent='Add Player — '+stage.title;
+ $('npcPlayerWizardProgress').textContent='Step '+(playerWizardStep+1)+' of '+wizardStages.length;
+ const rows=stage.fields.map(([key,label,type])=>
+  '<div class="field"><label for="npcWizard_'+key+'">'+label+'</label>'+
+  '<input id="npcWizard_'+key+'" name="'+key+'" type="'+type+'" '+(type==='number'?'step="1"':'')+
+  ' value="'+escapeHTML(playerWizardData[key]??'')+'" '+(key==='name'?'maxlength="120" required':'')+'></div>');
+ $('npcPlayerWizardFields').innerHTML='<div class="'+(stage.fields.length>1?'npc-player-wizard-grid':'')+'">'+rows.join('')+'</div>';
+ $('npcPlayerWizardBack').disabled=playerWizardStep===0;
+ $('npcPlayerWizardNext').textContent=playerWizardStep===wizardStages.length-1?'Add Player':'Next →';
+ $('npcPlayerWizardError').textContent='';
+ $('npcPlayerWizardFields').querySelector('input')?.focus();
+}
+function readPlayerWizardStep(){
+ for(const [key,,type] of wizardStages[playerWizardStep].fields){
+  const value=$('npcWizard_'+key).value.trim();
+  if(key==='name'&&!value)throw Error('Enter a PC name.');
+  if(type==='number'&&value!==''&&(!Number.isSafeInteger(Number(value))))throw Error('All attributes, HP, DR, and Mana must be whole numbers.');
+  playerWizardData[key]=value;
+ }
+}
+function openPlayerWizard(){
+ if(!gm()||!ensure())return;
+ playerWizardData=playerWizardDefaults();playerWizardStep=0;
+ $('npcPlayerWizard').showModal();renderPlayerWizard();
+}
+function closePlayerWizard(){
+ if($('npcPlayerWizard').open)$('npcPlayerWizard').close();
+}
+$('npcPlayerWizardClose').onclick=closePlayerWizard;
+$('npcPlayerWizardCancel').onclick=closePlayerWizard;
+$('npcPlayerWizardBack').onclick=()=>{
+ try{readPlayerWizardStep();if(playerWizardStep>0){playerWizardStep--;renderPlayerWizard()}}
+ catch(error){$('npcPlayerWizardError').textContent=error.message}
+};
+$('npcPlayerWizardForm').onsubmit=event=>{
+ event.preventDefault();
+ try{
+  readPlayerWizardStep();
+  if(playerWizardStep<wizardStages.length-1){playerWizardStep++;renderPlayerWizard();return}
+  const c=ensure();if(!c||!gm())return;
+  const data=playerWizardData;
+  const number=key=>data[key]===''?0:Number(data[key]);
+  const player={id:uid(),name:data.name,bod:number('bod'),dex:number('dex'),mnd:number('mnd'),cha:number('cha'),
+   hp:number('hp'),hpMax:number('hp'),drArmor:number('drArmor'),drNatural:0,drMagic:0,
+   mana:number('mana'),manaMax:number('mana'),attack:data.attack,defense:data.defense,conditions:''};
+  c.initiative ||= {values:{},players:[],activeId:null,round:1};
+  c.initiative.players ||= [];
+  c.initiative.players.push(player);
+  save();closePlayerWizard();renderBestiary();
+ }catch(error){$('npcPlayerWizardError').textContent=error?.message||String(error)}
+};
 
 function setPane(to){
  if(to!=='bestiary'&&$('npcCategoryDialog')?.open)$('npcCategoryDialog').close();
@@ -701,21 +764,7 @@ function renderBestiary(){
  });
 }
 
-$('npcAddInitiativePlayer').onclick=()=>{
- const c=ensure();if(!gm()||!c)return;
- const name=prompt('Player character name:');if(!name?.trim())return;
- const player={id:uid(),name:name.trim(),hp:0,drArmor:0,mana:0,conditions:'',bod:'—',dex:'—',mnd:'—',cha:'—'};
- // Optional manual core stats, never imply these represent the player's synced Chara sheet.
- const data=prompt('Core stats (HP, DR, Mana, BOD, DEX, MND, CHA), comma-separated. Leave blank for zero/unknown.','');
- if(data===null)return;
- const parts=data.split(',').map(s=>s.trim());
- ['hp','drArmor','mana','bod','dex','mnd','cha'].forEach((key,i)=>{
-  if(parts[i]!==undefined&&parts[i]!==''&&Number.isFinite(Number(parts[i])))player[key]=Number(parts[i]);
- });
- c.initiative ||= {values:{},players:[],activeId:null,round:1};
- c.initiative.players.push(player);
- save();renderBestiary();
-};
+$('npcAddInitiativePlayer').onclick=openPlayerWizard;
 $('npcNextTurn').onclick=async()=>{
  const c=ensure();if(!gm()||!c)return;
  const order=initiativeEntries(c);
