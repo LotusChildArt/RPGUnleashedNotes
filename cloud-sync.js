@@ -62,14 +62,32 @@ function diffPublishedActivity(previous,next){
  if(additions.length)emit('session-journal',additions.length===1?'Session Journal Updated: '+label(additions[0].title,'New entry'):'Session Journal Updated: '+additions.length+' new entries');
  return events;
 }
+
+function rememberSentActivities(events,eventId){
+ if(!roomId)return;
+ try{
+  const key='RPGUnleashedNotes.broadcastHistory.v1';
+  const history=JSON.parse(localStorage.getItem(key)||'{}');
+  const records=Array.isArray(history[roomId])?history[roomId]:[];
+  for(const item of events){
+   const id=eventId+'|'+item.kind+'|'+item.message;
+   if(!records.some(x=>x.id===id))records.unshift({id,kind:item.kind,message:item.message,at:Date.now()});
+  }
+  history[roomId]=records.slice(0,300);
+  localStorage.setItem(key,JSON.stringify(history));
+  window.dispatchEvent(new CustomEvent('rpg-notes-history-updated',{detail:{roomId}}));
+ }catch(error){console.warn('Could not record sent announcement',error)}
+}
 async function broadcastActivities(events){
  if(!roomId||!OBR.isReady||!events?.length)return;
  const unique=[...new Map(events.map(e=>[e.kind+'|'+e.message,e])).values()];
  try{
+  const eventId=crypto.randomUUID();
   await OBR.broadcast.sendMessage(ACTIVITY_CHANNEL,{
-   version:1,roomId,actorId:OBR.player.id,eventId:crypto.randomUUID(),
+   version:1,roomId,actorId:OBR.player.id,eventId,
    events:unique.slice(0,25)
   },{destination:'ALL'});
+  rememberSentActivities(unique.slice(0,25),eventId);
  }catch(error){console.warn('RPG Unleashed activity announcement failed',error)}
 }
 // Manual GM announcements use the same room-wide activity channel and
@@ -80,10 +98,12 @@ window.rpgSendGMBroadcast=async message=>{
  if(!OBR.isAvailable||!roomId||!await OBR.scene.isReady())throw Error('Open Notes in an active Owlbear room.');
  const role=await OBR.player.getRole();
  if(role!=='GM'||owlRole!=='GM')throw Error('Only the Owlbear GM can broadcast.');
+ const eventId=crypto.randomUUID();
  await OBR.broadcast.sendMessage(ACTIVITY_CHANNEL,{
-  version:1,roomId,actorId:OBR.player.id,eventId:crypto.randomUUID(),
+  version:1,roomId,actorId:OBR.player.id,eventId,
   events:[{kind:'gm-broadcast',message:text}]
  },{destination:'ALL'});
+ rememberSentActivities([{kind:'gm-broadcast',message:text}],eventId);
 };
 function nameForTarget(kind,id){
  const campaign=bridge.getActiveCampaign();
