@@ -1,6 +1,8 @@
 import OBR,{buildImage,buildText,buildLabel} from 'https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm';
 
 const TOKEN_KEY='com.rpgunleashed.notes/npcTokenV1';
+const CHARA_LINK_KEY='com.rpgunleashed.character-sheet/tokenLink';
+const PLAYER_BRIDGE_KEY='com.rpgunleashed.notes/playerCombatV1';
 const HUD_KEY='com.rpgunleashed.notes/npcHudV1';
 const ASSETS='https://rpgunleashedchara.onrender.com/assets/';
 const DEFAULT_TOKEN='https://rpgunleashednotes.onrender.com/assets/npc-placeholder.webp';
@@ -166,14 +168,64 @@ async function remove(c){
  return true;
 }
 
+
+async function selectedCharaToken(){
+ if(!await connection())throw Error('Open Notes as the GM in an active Owlbear scene.');
+ const selected=await OBR.player.getSelection();
+ if(selected?.length!==1)throw Error('Select exactly one linked player Character token in Owlbear.');
+ const items=await OBR.scene.items.getItems(selected);
+ const token=items.find(x=>x.layer==='CHARACTER');
+ const link=token?.metadata?.[CHARA_LINK_KEY];
+ if(!token||!link?.characterId||!link?.ownerId||link.roomId!==roomId)
+  throw Error('The selected token is not linked to an RPG Unleashed Chara character in this room.');
+ return {tokenId:token.id,characterId:link.characterId,ownerId:link.ownerId,
+  stats:token.metadata?.[PLAYER_BRIDGE_KEY]?.stats||null,
+  sheetRevision:token.metadata?.[PLAYER_BRIDGE_KEY]?.sheetRevision||0};
+}
+async function playerTokenSnapshot(player){
+ if(!await connection()||!player.tokenId)return null;
+ const items=await OBR.scene.items.getItems([player.tokenId]);
+ const token=items[0];
+ if(!token||token.layer!=='CHARACTER')return null;
+ const link=token.metadata?.[CHARA_LINK_KEY];
+ if(link?.characterId!==player.characterId||link?.ownerId!==player.ownerId||link?.roomId!==roomId)return null;
+ const bridge=token.metadata?.[PLAYER_BRIDGE_KEY];
+ return bridge?.characterId===player.characterId&&bridge.ownerId===player.ownerId?bridge:null;
+}
+async function updatePlayerCombat(player,values){
+ if(!await connection())throw Error('An active Owlbear scene is required.');
+ if(!player.tokenId||!player.characterId||!player.ownerId)throw Error('This player is not linked to Chara.');
+ const data=await playerTokenSnapshot(player);
+ if(!data)throw Error('The linked player token is unavailable or has not published combat statistics yet.');
+ // A pending patch must be acknowledged before sending a second one, preventing
+ // overwrites while the owner has not opened the Chara app.
+ if(data.pendingPatch)throw Error('A prior GM update is still awaiting the player’s Chara app. Refresh after it synchronizes.');
+ const fields=['hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic'];
+ const safe={};
+ for(const key of fields)if(Object.prototype.hasOwnProperty.call(values,key)){
+  const value=Number(values[key]);
+  if(!Number.isSafeInteger(value))throw Error('Combat statistics must be whole numbers.');
+  safe[key]=value;
+ }
+ const patch={id:crypto.randomUUID(),characterId:player.characterId,ownerId:player.ownerId,
+  createdAt:Date.now(),baseRevision:data.sheetRevision,values:safe};
+ await OBR.scene.items.updateItems([player.tokenId],items=>{for(const item of items){
+  const link=item.metadata?.[CHARA_LINK_KEY];
+  if(link?.characterId!==player.characterId||link?.ownerId!==player.ownerId)continue;
+  const current=item.metadata?.[PLAYER_BRIDGE_KEY];
+  if(!current||current.pendingPatch)continue;
+  item.metadata[PLAYER_BRIDGE_KEY]={...current,pendingPatch:patch};
+ }});
+ return patch;
+}
 async function setTurnMarker(combatant){
  if(!await connection())return false;
  const previous=await OBR.scene.items.getItems(item=>
   item.metadata?.[HUD_KEY]?.roomId===roomId&&item.metadata?.[HUD_KEY]?.kind==='turn-marker');
  if(previous.length)await OBR.scene.items.deleteItems(previous.map(x=>x.id));
  if(!combatant)return true;
- const token=await getExistingToken(combatant);
- if(!token)return false;
+ const token=combatant.tokenId?(await OBR.scene.items.getItems([combatant.tokenId]))[0]:await getExistingToken(combatant);
+ if(!token||token.layer!=='CHARACTER')return false;
  const bounds=await OBR.scene.items.getItemBounds([token.id]);
  const size=Math.max(46,Math.min(90,bounds.width*.38));
  const marker=buildText().plainText('▼').textType('PLAIN')
@@ -223,7 +275,7 @@ async function pull(c){
  c.npcUpdatedAt=remoteTime;
  return true;
 }
-window.RPGNPCBattlefield={spawn,updateHUD,setTurnMarker,remove,status,pull,watchNPCTokens,get ready(){return ready},get roomId(){return roomId}};
+window.RPGNPCBattlefield={spawn,updateHUD,setTurnMarker,selectedCharaToken,playerTokenSnapshot,updatePlayerCombat,remove,status,pull,watchNPCTokens,get ready(){return ready},get roomId(){return roomId}};
 if(OBR.isAvailable)OBR.onReady(async()=>{
  try{roomId=OBR.room.id;ready=(await OBR.player.getRole())==='GM';announce();
  OBR.player.onChange(p=>{ready=p.role==='GM';if(!ready&&tokenWatch){tokenWatch();tokenWatch=null}announce()});
