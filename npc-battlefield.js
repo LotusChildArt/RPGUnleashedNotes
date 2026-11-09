@@ -200,9 +200,14 @@ async function updatePlayerCombat(player,values){
  // A pending patch must be acknowledged before sending a second one, preventing
  // overwrites while the owner has not opened the Chara app.
  if(data.pendingPatch)throw Error('A prior GM update is still awaiting the player’s Chara app. Refresh after it synchronizes.');
- const fields=['hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic'];
+ const fields=['hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic','conditions'];
  const safe={};
  for(const key of fields)if(Object.prototype.hasOwnProperty.call(values,key)){
+  if(key==='conditions'){
+   const text=String(values[key]??'').trim();
+   if(text.length>300||text.split(',').some(part=>part.trim()&&!/^[a-z][a-z-]*(?::[0-9]+)?$/i.test(part.trim())))throw Error('Conditions must be comma-separated condition IDs, optionally followed by :stacks.');
+   safe[key]=text;continue;
+  }
   const value=Number(values[key]);
   if(!Number.isSafeInteger(value))throw Error('Combat statistics must be whole numbers.');
   safe[key]=value;
