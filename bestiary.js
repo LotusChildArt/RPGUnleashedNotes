@@ -208,7 +208,7 @@ function fieldMarkup(item){
  const x={...item,numberAttacks:item.numberAttacks??1,drive:parsedDrive(item),tactics:parsedTactics(item)};
  return '<div class="npc-creator">'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('name','Name',x)+npcInput('role','Role',x)+npcInput('level','Level',x,'number','min="0" step="1"')+'</div>'+ 
-  '<div class="npc-editor-row npc-editor-two">'+npcInput('faction','Faction / Creature Group',x)+ '<div class="field"><label for="npcField_category">Bestiary Category</label><select id="npcField_category" data-npc-field="category">'+['enemies','animals','monsters'].map(v=>'<option value="'+v+'" '+((x.category||'enemies')===v?'selected':'')+'>'+v[0].toUpperCase()+v.slice(1)+'</option>').join('')+'</select></div></div>'+
+  '<div class="npc-editor-row npc-editor-two">'+npcInput('faction','Faction / Creature Group',x)+ '<div class="field"><label for="npcField_category">Bestiary Category</label><select id="npcField_category" data-npc-field="category">'+['enemies','animals','monsters','npcs'].map(v=>'<option value="'+v+'" '+((x.category||'enemies')===v?'selected':'')+'>'+v[0].toUpperCase()+v.slice(1)+'</option>').join('')+'</select></div></div>'+
   '<div class="npc-editor-row npc-editor-four">'+['bod','dex','mnd','cha'].map(k=>npcInput(k,k.toUpperCase(),x,'number','step="1"')).join('')+'</div>'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('hp','HP',x,'number','step="1"')+npcInput('hpMax','Max HP',x,'number','min="0" step="1"')+npcInput('mana','Mana',x,'number','step="1"')+'</div>'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('manaMax','Max Mana',x,'number','min="0" step="1"')+npcInput('drArmor','Armor DR',x,'number','step="1"')+npcInput('drNatural','Natural DR',x,'number','step="1"')+'</div>'+
@@ -239,7 +239,7 @@ function formData(root,previous){
 }
 
 function bestiaryCategory(x){
- if(['enemies','animals','monsters'].includes(x.category))return x.category;
+ if(['enemies','animals','monsters','npcs'].includes(x.category))return x.category;
  const type=String(x.role||'').toLowerCase();
  if(/\b(predator|prey|scavenger|fauna|wildlife|animal)\b/.test(type))return 'animals';
  if(/\b(monster|undead|aberration|construct|beastial horror)\b/.test(type))return 'monsters';
@@ -690,7 +690,7 @@ function renderBestiary(){
     try{await engine.remove(x)}catch(error){showError(error);return}
    }else return alert('This combatant has a token in another Owlbear room. Remove it from that room first.');
   }
-  c.combatants=c.combatants.filter(t=>t.id!==x.id);save();renderBestiary();
+  c.combatants=c.combatants.filter(t=>t.id!==x.id);if(c.initiative?.activeId===x.id)c.initiative.activeId=null;save();renderBestiary();
  });
  container.querySelectorAll('[data-combat-popup]').forEach(b=>b.onclick=()=>{
   const x=c.combatants.find(t=>t.id===b.dataset.combatId);
