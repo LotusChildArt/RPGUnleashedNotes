@@ -310,12 +310,12 @@ async function syncLinkedPlayers(force=false){
    const bridge=await engine.playerTokenSnapshot(player);
    if(!bridge||bridge.pendingPatch||!bridge.stats)continue;
    const version=Number(bridge.sheetRevision||0);
-   if(version===Number(player.linkedSheetRevision||-1)&&bridge.updatedAt===player.linkedUpdatedAt)continue;
+   if(version===Number(player.linkedSheetRevision??-1)&&bridge.updatedAt===player.linkedUpdatedAt)continue;
    const stats=bridge.stats;
    for(const key of ['name','bod','dex','mnd','cha','hp','hpMax','mana','manaMax',
     'drArmor','drNatural','drMagic','attack','defense','conditions']){
     const value=stats[key];
-    if(value!==null&&value!==undefined&&value!==''&&player[key]!==value){
+    if(value!==null&&value!==undefined&&(value!==''||['name','attack','defense','conditions'].includes(key))&&player[key]!==value){
      player[key]=value;changed=true;
     }
    }
@@ -719,7 +719,7 @@ function renderBestiary(){
   const field=input.dataset.playerField;
   const value=field==='conditions'?input.value.trim():Number(input.value);
   if(field!=='conditions'&&(!Number.isSafeInteger(value)||input.value.trim()===''))return alert('Enter a whole number.');
-  if(field!=='conditions'&&player.tokenId){
+  if(player.tokenId){
    input.disabled=true;
    try{await window.RPGNPCBattlefield.updatePlayerCombat(player,{[field]:value})}
    catch(error){showError(error);input.disabled=false;renderBestiary();return}
