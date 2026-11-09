@@ -6,7 +6,8 @@ const uid=()=>crypto.randomUUID();
 const numbers=['level','bod','dex','mnd','cha','hp','hpMax','mana','manaMax','drArmor','drNatural','drMagic','nl','speed','numberAttacks'];
 const defaultRecord=()=>({id:uid(),name:'',role:'',race:'',level:1,bod:0,dex:0,mnd:0,cha:0,hp:10,hpMax:10,mana:0,manaMax:0,drArmor:0,drNatural:0,drMagic:0,nl:0,speed:0,attack:'',defense:'',weapons:'',armor:'',feats:'',conditions:'',tactics:'',drive:'',inventory:'',numberAttacks:1,notes:'',tokenImage:''});
 const gm=()=>state.role==='gm'&&owlAccessRole!=='PLAYER'&&owlAccessRole!=='UNKNOWN';
-let pane='bestiary',editMasterId=null,editCombatId=null;
+let pane='broadcast',editMasterId=null,editCombatId=null;
+let categoryPane='enemies';
 let npcPullRunning=false,lastNPCPull=0;
 const NPC_PENDING_KEY='RPGUnleashedNotes.pendingTokenDeletes.v1';
 function consumePendingNPCDeletions(){
@@ -206,7 +207,8 @@ function npcTextarea(key,label,value,rows=2){
 function fieldMarkup(item){
  const x={...item,numberAttacks:item.numberAttacks??1,drive:parsedDrive(item),tactics:parsedTactics(item)};
  return '<div class="npc-creator">'+
-  '<div class="npc-editor-row npc-editor-three">'+npcInput('name','Name',x)+npcInput('role','Role',x)+npcInput('level','Level',x,'number','min="0" step="1"')+'</div>'+
+  '<div class="npc-editor-row npc-editor-three">'+npcInput('name','Name',x)+npcInput('role','Role',x)+npcInput('level','Level',x,'number','min="0" step="1"')+'</div>'+ 
+  '<div class="npc-editor-row npc-editor-two">'+npcInput('faction','Faction / Creature Group',x)+ '<div class="field"><label for="npcField_category">Bestiary Category</label><select id="npcField_category" data-npc-field="category">'+['enemies','animals','monsters'].map(v=>'<option value="'+v+'" '+((x.category||'enemies')===v?'selected':'')+'>'+v[0].toUpperCase()+v.slice(1)+'</option>').join('')+'</select></div></div>'+
   '<div class="npc-editor-row npc-editor-four">'+['bod','dex','mnd','cha'].map(k=>npcInput(k,k.toUpperCase(),x,'number','step="1"')).join('')+'</div>'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('hp','HP',x,'number','step="1"')+npcInput('hpMax','Max HP',x,'number','min="0" step="1"')+npcInput('mana','Mana',x,'number','step="1"')+'</div>'+
   '<div class="npc-editor-row npc-editor-three">'+npcInput('manaMax','Max Mana',x,'number','min="0" step="1"')+npcInput('drArmor','Armor DR',x,'number','step="1"')+npcInput('drNatural','Natural DR',x,'number','step="1"')+'</div>'+
@@ -235,6 +237,100 @@ function formData(root,previous){
  data.weapons=data.weaponEntries.map(weaponSummary).join('\n');
  return data;
 }
+
+function bestiaryCategory(x){
+ if(['enemies','animals','monsters'].includes(x.category))return x.category;
+ const type=String(x.role||'').toLowerCase();
+ if(/\b(predator|prey|scavenger|fauna|wildlife|animal)\b/.test(type))return 'animals';
+ if(/\b(monster|undead|aberration|construct|beastial horror)\b/.test(type))return 'monsters';
+ return 'enemies';
+}
+function categoryGroups(kind){
+ const entries=state.bestiary.filter(x=>bestiaryCategory(x)===kind);
+ const factions=new Map();
+ for(const x of entries){
+  const faction=String(x.faction||x.role||(kind==='animals'?'Other Animals':'Unassigned')).trim()||'Unassigned';
+  if(!factions.has(faction))factions.set(faction,[]);
+  factions.get(faction).push(x);
+ }
+ return [...factions].sort((a,b)=>a[0].localeCompare(b[0],undefined,{sensitivity:'base'}))
+  .map(([name,list])=>{
+   const levels=new Map();
+   for(const x of list){
+    const level=Number(x.level)||0;
+    if(!levels.has(level))levels.set(level,[]);
+    levels.get(level).push(x);
+   }
+   return '<section class="npc-category-group"><h4>'+escapeHTML(name)+'</h4>'+
+    [...levels].sort((a,b)=>a[0]-b[0]).map(([level,items])=>
+      '<h5>Level '+level+'</h5>'+items.sort((a,b)=>a.name.localeCompare(b.name)).map(masterHTML).join('')).join('')+'</section>';
+  }).join('')||'<p class="muted">No entries in this category. Use + Creature / NPC to add some.</p>';
+}
+function npcPeopleList(){
+ const c=current();
+ const people=[...(c?.people||[])].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+ return people.map(person=>{
+  const id=escapeHTML(person.id),linked=state.bestiary.find(x=>x.id===person.npcTemplateId);
+  return '<div class="entry npc-entry"><h4>'+escapeHTML(person.name||'Unnamed')+'</h4>'+
+   '<p class="muted">'+escapeHTML([person.role,person.race].filter(Boolean).join(' · ')||'Person')+'</p>'+
+   '<p class="muted">Stat block: '+escapeHTML(linked?.name||'Not assigned')+'</p>'+
+   '<div class="npc-actions"><button data-person-create="'+id+'">Create Stat Block</button>'+
+   '<button data-person-duplicate="'+id+'">Copy Enemy Stat Block</button>'+
+   '<button data-person-spawn="'+id+'">Spawn Token</button></div></div>';
+ }).join('')||'<p class="muted">No People entries yet. Add them in the People tab.</p>';
+}
+function showCategory(category){
+ categoryPane=category;
+ $('npcCategoryTitle').textContent=category==='npcs'?'People — NPCs':category.charAt(0).toUpperCase()+category.slice(1);
+ $('npcCategoryContents').innerHTML=category==='npcs'?npcPeopleList():categoryGroups(category);
+ const dialog=$('npcCategoryDialog');
+ if(!dialog.open)dialog.showModal();
+}
+function broadcastHistory(){
+ const room=window.RPGNPCBattlefield?.roomId;
+ let entries=[];
+ try{entries=JSON.parse(localStorage.getItem('RPGUnleashedNotes.broadcastHistory.v1')||'{}')[room]||[]}catch{}
+ $('gmBroadcastHistory').innerHTML=entries.map(x=>
+  '<div class="gm-history-row"><time>'+escapeHTML(new Date(x.at).toLocaleString())+'</time><p>'+escapeHTML(x.message)+'</p></div>')
+  .join('')||'<p class="muted">No announcements recorded yet in this room. New notifications will appear here as they arrive.</p>';
+}
+function initiativeEntries(c){
+ c.initiative ||= {values:{},players:[],activeId:null,round:1};
+ const t=c.initiative;
+ t.players ||= [];t.values ||= {};
+ const entries=[...c.combatants.map(x=>({id:x.id,name:x.name,npc:x})),
+  ...t.players.map(x=>({id:x.id,name:x.name,player:x}))];
+ const num=id=>Number(t.values[id]??0);
+ entries.sort((a,b)=>num(b.id)-num(a.id)||a.name.localeCompare(b.name));
+ if(t.activeId){
+  const index=entries.findIndex(x=>x.id===t.activeId);
+  if(index>=0)return [...entries.slice(index),...entries.slice(0,index)];
+ }
+ return entries;
+}
+function initiativeHTML(c){
+ const entries=initiativeEntries(c),t=c.initiative;
+ $('npcInitiativeList').innerHTML=entries.map((entry,index)=>{
+  const x=entry.npc||entry.player,dr=Number(x.drArmor||0)+Number(x.drNatural||0)+Number(x.drMagic||0);
+  return '<div class="npc-initiative-entry '+(index===0&&t.activeId===entry.id?'active':'')+'">'+
+    '<div class="npc-initiative-head"><strong>'+(index===0&&t.activeId===entry.id?'▶ ':'')+escapeHTML(entry.name)+'</strong>'+
+    '<input type="number" step="1" data-initiative-value="'+escapeHTML(entry.id)+'" value="'+escapeHTML(t.values[entry.id]??'')+'" aria-label="Initiative for '+escapeHTML(entry.name)+'">'+
+    (entry.player?'<button type="button" data-initiative-remove="'+escapeHTML(entry.id)+'" title="Remove player">×</button>':'')+'</div>'+
+    '<div class="npc-initiative-stats">HP '+escapeHTML(x.hp??'—')+' | DR '+escapeHTML(dr)+' | Mana '+escapeHTML(x.mana??'—')+'</div></div>';
+ }).join('')||'<p class="muted">Add combatants or players to begin.</p>';
+ $('npcInitiativeStatus').textContent='Round '+(t.round||1)+(t.activeId?' · Current turn: '+(entries[0]?.name||'None'):' · Set initiative to begin');
+ return entries;
+}
+function playerHTML(x){
+ const id=escapeHTML(x.id);
+ return '<article class="entry npc-player-card"><h3>'+escapeHTML(x.name)+'</h3>'+
+  '<div class="npc-combat-attributes">'+['bod','dex','mnd','cha'].map(key=>'<span>'+key.toUpperCase()+' '+escapeHTML(x[key]??'—')+'</span>').join('')+'</div>'+
+  '<div class="npc-combat-vitals">HP <input data-player-stat="'+id+'" data-player-field="hp" type="number" value="'+escapeHTML(x.hp??0)+'" aria-label="HP">'+
+  ' DR <input data-player-stat="'+id+'" data-player-field="drArmor" type="number" value="'+escapeHTML(x.drArmor??0)+'" aria-label="DR">'+
+  ' Mana <input data-player-stat="'+id+'" data-player-field="mana" type="number" value="'+escapeHTML(x.mana??0)+'" aria-label="Mana"></div>'+
+  '<label>Conditions <input data-player-stat="'+id+'" data-player-field="conditions" value="'+escapeHTML(x.conditions||'')+'" placeholder="None"></label></article>';
+}
+
 function setPane(to){
  pane=to;
  $('gmBestiaryPane').classList.toggle('hidden',to!=='bestiary');
