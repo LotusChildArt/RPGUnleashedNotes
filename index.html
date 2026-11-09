@@ -183,6 +183,22 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 @media(max-width:690px){#gmTools .npc-combat-layout{grid-template-columns:minmax(0,1fr)}#gmTools .npc-initiative-panel{position:static;grid-row:1}#gmTools .npc-category-buttons{grid-template-columns:repeat(2,1fr)}}
 </style>
 <style>#gmBestiaryPane > .panel:first-child > .field,#npcBestiaryList{display:none}</style>
+<style>
+.npc-player-wizard{width:min(94vw,560px)}
+.npc-player-wizard .npc-player-wizard-fields{display:grid;gap:12px;padding:8px 0}
+.npc-player-wizard .npc-player-wizard-fields .field{min-width:0;margin:0}
+.npc-player-wizard .npc-player-wizard-fields .field label{display:block;font-size:12px;margin-bottom:5px}
+.npc-player-wizard .npc-player-wizard-fields input{box-sizing:border-box;width:100%;min-width:0}
+.npc-player-wizard .npc-player-wizard-fields .npc-player-wizard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.npc-player-wizard #npcPlayerWizardError:empty{display:none}
+#gmTools .npc-player-card .npc-combat-vitals{gap:8px;flex-wrap:wrap}
+#gmTools .npc-player-card .npc-player-vital{display:inline-flex;gap:5px;align-items:center;font-size:12px}
+#gmTools .npc-player-card .npc-player-vital input{width:62px;min-width:0;padding:5px}
+#gmTools .npc-player-card .npc-combat-detail{min-width:0}
+#gmTools .npc-player-card .npc-combat-detail strong{font-size:13px}
+#gmTools .npc-player-card .npc-player-conditions{display:grid;gap:5px;margin-top:9px;font-size:12px}
+#gmTools .npc-player-card .npc-player-conditions input{width:100%;box-sizing:border-box}
+</style>
 </head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
@@ -230,6 +246,15 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
  <div class="npc-info-header"><h3 id="npcCategoryTitle">Bestiary</h3><form method="dialog"><button class="small" aria-label="Close">×</button></form></div>
  <div id="npcCategoryContents"></div>
  <form method="dialog" class="npc-info-footer"><button type="submit">Close</button></form>
+</dialog>
+<dialog id="npcPlayerWizard" class="npc-category-dialog npc-player-wizard" aria-labelledby="npcPlayerWizardTitle">
+ <div class="npc-info-header"><h3 id="npcPlayerWizardTitle">Add Player — Name</h3><button class="small" type="button" id="npcPlayerWizardClose" aria-label="Cancel">×</button></div>
+ <p id="npcPlayerWizardProgress" class="muted">Step 1 of 4</p>
+ <form id="npcPlayerWizardForm" class="place-form">
+  <div id="npcPlayerWizardFields" class="npc-player-wizard-fields"></div>
+  <p id="npcPlayerWizardError" class="result" role="alert" aria-live="polite"></p>
+  <div class="actions"><button type="button" id="npcPlayerWizardBack">Back</button><button type="button" id="npcPlayerWizardCancel">Cancel</button><button class="primary" type="submit" id="npcPlayerWizardNext">Next →</button></div>
+ </form>
 </dialog>
 <section id="gmCombatPane" class="hidden"><div class="panel"><div class="group-head"><h2>Active Combatants</h2><button class="small" id="npcGoBestiary">+ Spawn from Bestiary</button></div><p class="muted">Each spawned copy has independent HP, DR, conditions and other stats. Owlbear tokens are GM-controlled.</p><div class="npc-combat-layout"><div class="npc-combat-stat-column" id="npcCombatantList"></div><aside class="npc-initiative-panel"><div class="group-head"><h3>Initiative</h3><button class="small" id="npcAddInitiativePlayer" type="button">+ Player</button></div><div id="npcInitiativeList"></div><button type="button" class="primary" id="npcNextTurn">Next Combatant →</button><p class="muted" id="npcInitiativeStatus" aria-live="polite"></p></aside></div></div>
 <div class="panel hidden" id="npcCombatEditor"><div class="group-head"><h2>Edit Combatant</h2><button class="small" id="npcCombatCancel">← Combatants</button></div><div id="npcCombatFields" class="place-form"></div><div class="actions"><button class="primary" id="npcCombatSave">Save Combatant</button><button id="npcCombatDiscard">Cancel</button></div><p id="npcCombatFeedback" class="result" aria-live="polite"></p></div></div></section>
