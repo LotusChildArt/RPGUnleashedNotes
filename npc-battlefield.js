@@ -221,6 +221,8 @@ async function updatePlayerCombat(player,values){
   if(!current||current.pendingPatch)continue;
   item.metadata[PLAYER_BRIDGE_KEY]={...current,pendingPatch:patch};
  }});
+ const verification=await playerTokenSnapshot(player);
+ if(verification?.pendingPatch?.id!==patch.id)throw Error('Another GM combat update is still pending. Retry after synchronization.');
  return patch;
 }
 async function setTurnMarker(combatant){
