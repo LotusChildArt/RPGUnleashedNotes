@@ -9,6 +9,20 @@ const allowedKinds=new Set([
  'place-discovered','people-note','place-note','quest-note','note-reply','note-deleted','session-journal','gm-broadcast'
 ]);
 
+const HISTORY_KEY='RPGUnleashedNotes.broadcastHistory.v1';
+function logActivityHistory(room,kind,message,eventId){
+ if(!room||!message)return;
+ try{
+  const history=JSON.parse(localStorage.getItem(HISTORY_KEY)||'{}');
+  const perRoom=Array.isArray(history[room])?history[room]:[];
+  const id=eventId+'|'+kind+'|'+message;
+  if(perRoom.some(entry=>entry.id===id))return;
+  perRoom.unshift({id,kind,message,at:Date.now()});
+  history[room]=perRoom.slice(0,300);
+  localStorage.setItem(HISTORY_KEY,JSON.stringify(history));
+  window.dispatchEvent(new CustomEvent('rpg-notes-history-updated',{detail:{roomId:room}}));
+ }catch(error){console.warn('Could not retain announcement history',error)}
+}
 function queueNotification(message){
  pending.push(message);
  if(flushTimer!==null)return;
@@ -47,7 +61,7 @@ OBR.onReady(async()=>{
   if(!Array.isArray(data.events))return;
   for(const item of data.events.slice(0,25)){
    if(!item||!allowedKinds.has(item.kind)||typeof item.message!=='string')continue;
-   if(item.message.length>0&&item.message.length<=220)queueNotification(item.message);
+   if(item.message.length>0&&item.message.length<=220){logActivityHistory(room,item.kind,item.message,data.eventId);queueNotification(item.message);}
   }
  });
 });
