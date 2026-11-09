@@ -154,6 +154,34 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 .npc-feat-or span{border:1px dashed var(--edge,#888);border-radius:15px;padding:4px 8px;white-space:nowrap}
 .npc-feat-and{text-align:center;font-weight:700;font-size:11px;margin:2px 0}
 </style>
+<style>
+#gmTools .npc-category-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
+#gmTools .npc-category-buttons button{min-width:0;padding:12px 4px;font-weight:700}
+.npc-category-dialog{width:min(92vw,850px);max-height:85vh;overflow:auto;border-radius:12px;border:1px solid var(--edge,#888);background:var(--panel,#fff);color:var(--fg,inherit);padding:16px}
+.npc-category-dialog::backdrop{background:rgba(0,0,0,.55)}
+.npc-category-group{margin:12px 0;border-top:1px solid var(--edge,#999);padding-top:8px}
+.npc-category-group h4{margin:8px 0}
+.npc-category-group h5{margin:6px 0}
+.npc-category-dialog .npc-entry{margin:7px 0}
+#gmTools .npc-combat-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(205px,1fr);gap:12px;align-items:start}
+#gmTools .npc-combat-stat-column{min-width:0}
+#gmTools .npc-initiative-panel{position:sticky;top:12px;min-width:0;padding:10px;border:1px solid var(--edge,#888);border-radius:9px}
+#gmTools .npc-initiative-panel .group-head{flex-wrap:wrap}
+#gmTools .npc-initiative-entry{padding:7px;margin:6px 0;border:1px solid var(--edge,#888);border-radius:8px}
+#gmTools .npc-initiative-entry.active{outline:2px solid var(--accent,#698ec7)}
+#gmTools .npc-initiative-head{display:flex;gap:5px;align-items:center}
+#gmTools .npc-initiative-head strong{flex:1;font-size:12px;overflow-wrap:anywhere}
+#gmTools .npc-initiative-head input{width:55px;min-width:0;padding:4px}
+#gmTools .npc-initiative-stats{font-size:11px;margin-top:4px}
+#gmTools .npc-player-card{padding:12px;margin:9px 0}
+#gmTools .npc-player-card h3{margin:0 0 8px}
+#gmTools #npcNextTurn{width:100%;margin-top:10px}
+#gmTools .gm-history-list{max-height:340px;overflow-y:auto;margin-top:10px}
+#gmTools .gm-history-row{padding:9px 3px;border-bottom:1px solid var(--edge,#888)}
+#gmTools .gm-history-row time{display:block;font-size:11px;opacity:.75;margin-bottom:3px}
+#gmTools .gm-history-row p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:690px){#gmTools .npc-combat-layout{grid-template-columns:minmax(0,1fr)}#gmTools .npc-initiative-panel{position:static;grid-row:1}#gmTools .npc-category-buttons{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
 <section id="homeScreen" class="app-screen"><div class="app-shell"><div class="app-brand"><img src="icons/icon-192.png" alt="RPG Unleashed icon" class="menu-symbol" style="object-fit:contain;padding:0"><div><h1>RPG UNLEASHED</h1><div class="subtitle">NOTES · Campaign Manager</div></div></div><div class="main-menu-actions"><button class="main-menu-button" data-screen="campaign">Campaign</button><button class="main-menu-button" data-screen="rules">Rules</button><button class="main-menu-button" data-screen="options">Options</button></div></div></section>
@@ -192,12 +220,17 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 <div class="field"><label for="calendarDayNames">Day names (comma-separated, optional)</label><input id="calendarDayNames" placeholder="Firstday, Secondday, ..."></div>
 <div class="field"><label for="calendarWeekOffset">Starting day offset (0 = first grouping day)</label><input id="calendarWeekOffset" type="number" min="0" value="1"></div>
 </div><div class="actions"><button class="primary" id="calendarFormSave">Save Calendar</button><button id="calendarCancel">Cancel</button></div></div></div></section></section>
-<section id="gmTools" class="hidden camp-pane"><nav class="tabs" id="gmToolsTabs"><button class="tab active" id="gmToolsBestiary">Bestiary</button><button class="tab" id="gmToolsCombat">Combatants</button><button class="tab" id="gmToolsBroadcast">Broadcast</button></nav>
+<section id="gmTools" class="hidden camp-pane"><nav class="tabs" id="gmToolsTabs"><button class="tab active" id="gmToolsBroadcast">Broadcast</button><button class="tab" id="gmToolsCombat">Combat</button><button class="tab" id="gmToolsBestiary">Bestiary</button></nav>
 <section id="gmBestiaryPane">
-<div class="panel"><div class="group-head"><h2>Bestiary</h2><button class="small" id="npcAddBestiary">+ Creature / NPC</button></div><p class="muted">Reusable stat blocks across your campaigns. Spawning creates independently editable copies.</p><div class="field"><label for="npcBestiarySearch">Search Bestiary</label><input id="npcBestiarySearch" placeholder="Search by name, role, race or notes"></div><div id="npcBestiaryList"></div></div>
+<div class="panel"><div class="group-head"><h2>Bestiary</h2><button class="small" id="npcAddBestiary">+ Creature / NPC</button></div><div class="npc-category-buttons"><button type="button" data-bestiary-category="enemies">Enemies</button><button type="button" data-bestiary-category="animals">Animals</button><button type="button" data-bestiary-category="monsters">Monsters</button><button type="button" data-bestiary-category="npcs">NPCs</button></div><p class="muted">Reusable stat blocks across your campaigns. Spawning creates independently editable copies.</p><div class="field"><label for="npcBestiarySearch">Search Bestiary</label><input id="npcBestiarySearch" placeholder="Search by name, role, race or notes"></div><div id="npcBestiaryList"></div></div>
 <div class="panel hidden" id="npcBestiaryEditor"><div class="group-head"><h2 id="npcBestiaryEditTitle">Bestiary Entry</h2><button class="small" id="npcBestiaryCancel">← Bestiary</button></div><div id="npcBestiaryFields" class="place-form"></div><div class="actions"><button class="primary" id="npcBestiarySave">Save Bestiary Entry</button><button id="npcBestiaryDiscard">Cancel</button></div></div>
 </section>
-<section id="gmCombatPane" class="hidden"><div class="panel"><div class="group-head"><h2>Active Combatants</h2><button class="small" id="npcGoBestiary">+ Spawn from Bestiary</button></div><p class="muted">Each spawned copy has independent HP, DR, conditions and other stats. Owlbear tokens are GM-controlled.</p><div id="npcCombatantList"></div></div>
+<dialog id="npcCategoryDialog" class="npc-category-dialog" aria-labelledby="npcCategoryTitle">
+ <div class="npc-info-header"><h3 id="npcCategoryTitle">Bestiary</h3><form method="dialog"><button class="small" aria-label="Close">×</button></form></div>
+ <div id="npcCategoryContents"></div>
+ <form method="dialog" class="npc-info-footer"><button type="submit">Close</button></form>
+</dialog>
+<section id="gmCombatPane" class="hidden"><div class="panel"><div class="group-head"><h2>Active Combatants</h2><button class="small" id="npcGoBestiary">+ Spawn from Bestiary</button></div><p class="muted">Each spawned copy has independent HP, DR, conditions and other stats. Owlbear tokens are GM-controlled.</p><div class="npc-combat-layout"><div class="npc-combat-stat-column" id="npcCombatantList"></div><aside class="npc-initiative-panel"><div class="group-head"><h3>Initiative</h3><button class="small" id="npcAddInitiativePlayer" type="button">+ Player</button></div><div id="npcInitiativeList"></div><button type="button" class="primary" id="npcNextTurn">Next Combatant →</button><p class="muted" id="npcInitiativeStatus" aria-live="polite"></p></aside></div></div>
 <div class="panel hidden" id="npcCombatEditor"><div class="group-head"><h2>Edit Combatant</h2><button class="small" id="npcCombatCancel">← Combatants</button></div><div id="npcCombatFields" class="place-form"></div><div class="actions"><button class="primary" id="npcCombatSave">Save Combatant</button><button id="npcCombatDiscard">Cancel</button></div><p id="npcCombatFeedback" class="result" aria-live="polite"></p></div></div></section>
 <section id="gmBroadcastPane" class="hidden">
  <div class="panel">
@@ -205,7 +238,7 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
   <p class="muted">Send a notification to everyone in this Owlbear room using the same notification system as campaign announcements.</p>
   <div class="field"><label for="gmBroadcastMessage">Message</label><textarea id="gmBroadcastMessage" rows="5" maxlength="220" placeholder="Type your announcement here…"></textarea></div>
   <div class="actions"><button class="primary" id="gmBroadcastSend" type="button">Send Broadcast</button></div>
-  <p id="gmBroadcastStatus" class="muted" role="status" aria-live="polite"></p>
+  <p id="gmBroadcastStatus" class="muted" role="status" aria-live="polite"></p><button class="small" type="button" id="gmBroadcastHistoryToggle" aria-controls="gmBroadcastHistory" aria-expanded="false">▸ Announcement history</button><div id="gmBroadcastHistory" class="hidden gm-history-list"></div>
  </div>
 </section>
 </section>
