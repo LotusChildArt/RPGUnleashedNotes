@@ -200,14 +200,14 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 #gmTools .npc-player-card .npc-player-conditions input{width:100%;box-sizing:border-box}
 </style>
 <style>
-/* GM Combat: always left-hand cards and right-hand initiative. Narrow Owlbear
-   popovers scroll horizontally instead of rearranging the tracker above cards. */
-#gmCombatPane > .panel{overflow-x:auto;overscroll-behavior-x:contain}
+/* Combat columns scale to the available width: no forced horizontal scrolling. */
+#gmCombatPane,#gmCombatPane > .panel{min-width:0;max-width:100%;overflow:visible}
 #gmTools .npc-combat-layout{
  display:grid;
- grid-template-columns:minmax(380px, 2fr) minmax(220px, 1fr);
- min-width:620px;
- gap:12px;
+ width:100%;
+ min-width:0;
+ grid-template-columns:minmax(0, 1.55fr) minmax(0, 1fr);
+ gap:clamp(5px,1.1vw,12px);
  align-items:start;
 }
 #gmTools .npc-combat-stat-column{grid-column:1;grid-row:1;min-width:0}
@@ -231,6 +231,61 @@ dialog.npc-category-dialog input,dialog.npc-category-dialog select,dialog.npc-ca
 dialog.npc-category-dialog button,
 .relationship-modal input,.relationship-modal select,.relationship-modal textarea,.relationship-modal button{
  background-color:var(--surface);color:var(--fg);border-color:var(--edge);
+}
+</style>
+<style>
+/* Compact combat-only cards and controls, without shrinking other GM screens. */
+#gmCombatPane > .panel{padding:clamp(6px,1.5vw,14px)}
+#gmTools #npcCombatantList .npc-combat-card{padding:clamp(5px,1.1vw,10px);margin:0 0 8px;border-radius:10px;min-width:0}
+#gmTools #npcCombatantList .npc-combat-head{gap:3px;min-width:0}
+#gmTools #npcCombatantList .npc-combat-head h3{font-size:clamp(11px,1.25vw,15px);overflow-wrap:anywhere}
+#gmTools #npcCombatantList .npc-combat-head .subtle-info{font-size:10px;line-height:1.25;margin:2px 0 3px;overflow-wrap:anywhere}
+#gmTools #npcCombatantList .npc-more>summary{padding:1px 5px;font-size:18px;line-height:20px}
+#gmTools #npcCombatantList .npc-combat-attributes{gap:3px;margin:5px 0;font-size:clamp(9px,1vw,11px)}
+#gmTools #npcCombatantList .npc-combat-attributes span{padding:2px 3px}
+#gmTools #npcCombatantList .npc-combat-vitals{gap:4px 6px;margin:5px 0;font-size:clamp(10px,1vw,12px)}
+#gmTools #npcCombatantList .npc-hp-edit{gap:3px;font-size:inherit}
+#gmTools #npcCombatantList .npc-hp-edit input{width:43px;padding:3px;font-size:12px}
+#gmTools #npcCombatantList .npc-combat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:6px 0}
+#gmTools #npcCombatantList .npc-combat-detail{gap:2px;padding:4px;border-radius:5px}
+#gmTools #npcCombatantList .npc-combat-detail span{font-size:9px}
+#gmTools #npcCombatantList .npc-combat-detail strong{font-size:clamp(10px,1vw,12px);line-height:1.3}
+#gmTools #npcCombatantList .npc-weapon-list{margin:5px 0;gap:4px}
+#gmTools #npcCombatantList .npc-weapon-list-title{font-size:10px}
+#gmTools #npcCombatantList .npc-weapon-display{padding:4px;gap:3px 4px;border-radius:5px}
+#gmTools #npcCombatantList .npc-weapon-stats{flex:1 1 80px;font-size:10px}
+#gmTools #npcCombatantList .npc-weapon-choice input{width:15px;height:15px;min-width:15px}
+#gmTools #npcCombatantList .npc-ammo-counter{flex-wrap:wrap;gap:2px;font-size:10px}
+#gmTools #npcCombatantList .npc-ammo-counter span{font-size:10px}
+#gmTools #npcCombatantList .npc-ammo-counter button{min-width:23px;min-height:23px;padding:1px 5px}
+#gmTools #npcCombatantList .npc-ammo-counter input{width:39px;padding:3px;font-size:11px}
+#gmTools #npcCombatantList .npc-combat-bottom{gap:4px;flex-wrap:wrap}
+#gmTools #npcCombatantList .npc-popup-actions{gap:3px}
+#gmTools #npcCombatantList .npc-combat-bottom button{padding:4px 5px;font-size:10px}
+#gmTools #npcCombatantList .npc-combat-bottom .npc-remove{min-width:24px;font-size:17px}
+#gmTools #npcCombatantList .npc-player-vital{font-size:10px;gap:2px}
+#gmTools #npcCombatantList .npc-player-vital input{width:44px;padding:3px}
+#gmTools #npcCombatantList .npc-player-card .npc-actions{margin:0;gap:3px}
+#gmTools #npcCombatantList .npc-player-card .npc-actions button{padding:3px 5px;font-size:10px}
+#gmTools .npc-initiative-panel{padding:clamp(4px,.75vw,9px);border-radius:8px}
+#gmTools .npc-initiative-panel .group-head{display:flex;flex-wrap:wrap;gap:4px}
+#gmTools .npc-initiative-panel .group-head h3{font-size:clamp(11px,1.3vw,15px);flex:1 1 100%;margin:0}
+#gmTools .npc-initiative-panel .group-head button{min-width:0;font-size:10px;padding:4px 5px;white-space:normal;overflow-wrap:anywhere}
+#gmTools .npc-initiative-entry{padding:5px 3px;margin:5px 0;border-radius:6px}
+#gmTools .npc-initiative-head{gap:3px;min-width:0;flex-wrap:wrap}
+#gmTools .npc-initiative-head strong{font-size:clamp(10px,1vw,12px);min-width:0}
+#gmTools .npc-initiative-head input{width:43px;flex:0 0 43px;padding:3px;font-size:11px}
+#gmTools .npc-initiative-stats{font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+#gmTools #npcNextTurn{font-size:11px;padding:7px 4px;white-space:normal}
+#gmTools #npcInitiativeStatus{font-size:10px;overflow-wrap:anywhere}
+/* In forced-desktop mode, the combat workspace must still fit Owlbear's viewport. */
+body.force-desktop .shell:has(#gmCombatPane:not(.hidden)){width:100%;min-width:0;max-width:100%}
+@media(max-width:520px){
+ #gmTools .npc-combat-layout{grid-template-columns:minmax(0,1.48fr) minmax(0,1fr);gap:5px}
+ #gmCombatPane > .panel{padding:6px}
+ #gmTools #npcCombatantList .npc-combat-grid{grid-template-columns:minmax(0,1fr)}
+ #gmTools #npcCombatantList .npc-combat-detail{padding:3px}
+ #gmTools #npcCombatantList .npc-combat-bottom button{font-size:9px;padding:3px 4px}
 }
 </style>
 </head>
