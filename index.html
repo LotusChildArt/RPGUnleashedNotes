@@ -40,7 +40,7 @@ body.player-view #relationshipsSection #reviewRelationships,body.player-view #re
 @media(max-width:450px){.mode-switch{width:100%;justify-content:flex-end}}
 .mention-link{border:0;background:transparent;color:#2469bf;text-decoration:underline;padding:0 2px;border-radius:0;font:inherit;display:inline;cursor:pointer}body.dark .mention-link{color:#9ccaff}.mention-suggestions{position:relative;z-index:30;max-height:220px;overflow-y:auto;border:2px solid var(--edge);border-radius:12px;background:var(--surface);margin:3px 0 9px}.mention-suggestions.hidden{display:none!important}.mention-suggestion{display:block;width:100%;border:0;border-radius:0;text-align:left;padding:9px 12px;font-weight:normal}.mention-suggestion:hover{background:var(--raised)}
 .relationship-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}.relationship-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0}.relationship-row .relationship-open{flex:1;min-width:0;margin:0}.relationship-handle{touch-action:none;cursor:grab;user-select:none;padding:12px 7px;font-size:20px}.relationship-moving{opacity:.75}.relationship-moving .relationship-handle{cursor:grabbing}.relationship-row .small{flex-shrink:0}
-.relationship-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px}.relationship-modal{background:var(--surface);color:var(--text);border:1px solid var(--edge);border-radius:14px;padding:22px;width:min(440px,100%);max-height:90vh;overflow:auto;box-shadow:0 8px 35px #0005}.relationship-modal .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.relationship-modal select,.relationship-modal input{width:100%;margin-top:8px}
+.relationship-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px}.relationship-modal{background:var(--surface);color:var(--fg);border:1px solid var(--edge);border-radius:14px;padding:22px;width:min(440px,100%);max-height:90vh;overflow:auto;box-shadow:0 8px 35px #0005}.relationship-modal .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.relationship-modal select,.relationship-modal input{width:100%;margin-top:8px}
 .field-row.hidden,#singlePersonExtras.hidden,#personRoleField.hidden{display:none!important}.groups-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.group-member-line{display:flex;align-items:center;gap:8px}.group-member-line>.place-hub-link{flex:1;min-width:0}.group-eye{min-width:36px}.group-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}.group-head>h2,.group-head>h3{grid-column:1;margin:0}.group-head>button{grid-column:2;justify-self:center}.group-head h3{margin:0}.group-form{margin-top:10px}
 #personCreatePanel:has(> #addPersonFields.hidden),#addPlacePanel:has(> #addPlaceFields.hidden),#questEditor:has(> #questFields.hidden){display:none}
 
@@ -79,7 +79,7 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 #gmTools .npc-more[open]{z-index:10}
 #gmTools .npc-more>summary{list-style:none;cursor:pointer;user-select:none;padding:2px 10px;border:1px solid var(--edge);border-radius:7px;font-size:23px;line-height:24px;font-weight:700}
 #gmTools .npc-more>summary::-webkit-details-marker{display:none}
-#gmTools .npc-more-list{position:absolute;right:0;top:100%;width:max-content;min-width:180px;max-width:min(280px,90vw);display:grid;gap:3px;z-index:20;background:var(--panel,var(--surface,#fff));color:var(--fg,var(--text,#222));border:1px solid var(--edge);border-radius:9px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+#gmTools .npc-more-list{position:absolute;right:0;top:100%;width:max-content;min-width:180px;max-width:min(280px,90vw);display:grid;gap:3px;z-index:20;background:var(--surface);color:var(--fg);border:1px solid var(--edge);border-radius:9px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 #gmTools .npc-more-list button{display:block;width:100%;text-align:left;padding:9px 12px;white-space:normal}
 #gmTools .npc-combat-attributes{display:flex;gap:7px;flex-wrap:wrap;font-size:12px;margin:6px 0}#gmTools .npc-combat-attributes span{padding:3px 7px;border:1px solid var(--edge);border-radius:6px}
 #gmTools .npc-combat-vitals{display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;font-size:13px;margin:8px 0}
@@ -93,7 +93,7 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 #gmTools .npc-popup-actions{display:flex;gap:8px}
 #gmTools .npc-combat-bottom button{padding:6px 12px;font-size:12px}
 #gmTools .npc-combat-bottom .npc-remove{font-size:22px;line-height:20px;min-width:37px}
-.npc-info-dialog{width:min(92vw,490px);max-height:80vh;border:1px solid var(--edge,#777);border-radius:12px;padding:18px;background:var(--panel,var(--surface,#fff));color:var(--fg,var(--text,#222))}
+.npc-info-dialog{width:min(92vw,490px);max-height:80vh;border:1px solid var(--edge,#777);border-radius:12px;padding:18px;background:var(--surface);color:var(--fg)}
 .npc-info-dialog::backdrop{background:rgba(0,0,0,.6)}
 .npc-info-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .npc-info-header h3{margin:0}
@@ -157,7 +157,7 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 <style>
 #gmTools .npc-category-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
 #gmTools .npc-category-buttons button{min-width:0;padding:12px 4px;font-weight:700}
-.npc-category-dialog{width:min(92vw,850px);max-height:85vh;overflow:auto;border-radius:12px;border:1px solid var(--edge,#888);background:var(--panel,#fff);color:var(--fg,inherit);padding:16px}
+.npc-category-dialog{width:min(92vw,850px);max-height:85vh;overflow:auto;border-radius:12px;border:1px solid var(--edge,#888);background:var(--surface);color:var(--fg);padding:16px}
 .npc-category-dialog::backdrop{background:rgba(0,0,0,.55)}
 .npc-category-group{margin:12px 0;border-top:1px solid var(--edge,#999);padding-top:8px}
 .npc-category-group h4{margin:8px 0}
@@ -180,7 +180,7 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 #gmTools .gm-history-row{padding:9px 3px;border-bottom:1px solid var(--edge,#888)}
 #gmTools .gm-history-row time{display:block;font-size:11px;opacity:.75;margin-bottom:3px}
 #gmTools .gm-history-row p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:690px){#gmTools .npc-combat-layout{grid-template-columns:minmax(0,1fr)}#gmTools .npc-initiative-panel{position:static;grid-row:1}#gmTools .npc-category-buttons{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:690px){#gmTools .npc-category-buttons{grid-template-columns:repeat(2,1fr)}}
 </style>
 <style>#gmBestiaryPane > .panel:first-child > .field,#npcBestiaryList{display:none}</style>
 <style>
@@ -198,6 +198,40 @@ body.player-view #timeGMControls,body.owlbear-player #timeGMControls{display:non
 #gmTools .npc-player-card .npc-combat-detail strong{font-size:13px}
 #gmTools .npc-player-card .npc-player-conditions{display:grid;gap:5px;margin-top:9px;font-size:12px}
 #gmTools .npc-player-card .npc-player-conditions input{width:100%;box-sizing:border-box}
+</style>
+<style>
+/* GM Combat: always left-hand cards and right-hand initiative. Narrow Owlbear
+   popovers scroll horizontally instead of rearranging the tracker above cards. */
+#gmCombatPane > .panel{overflow-x:auto;overscroll-behavior-x:contain}
+#gmTools .npc-combat-layout{
+ display:grid;
+ grid-template-columns:minmax(380px, 2fr) minmax(220px, 1fr);
+ min-width:620px;
+ gap:12px;
+ align-items:start;
+}
+#gmTools .npc-combat-stat-column{grid-column:1;grid-row:1;min-width:0}
+#gmTools .npc-initiative-panel{grid-column:2;grid-row:1;position:sticky;top:12px;min-width:0}
+/* Native modal dialogs and their controls must inherit the same design tokens
+   as the main app. Avoid --panel/--text aliases that have no definitions. */
+dialog.npc-info-dialog,dialog.npc-category-dialog,dialog.npc-player-wizard,
+.relationship-modal{
+ background-color:var(--surface);
+ color:var(--fg);
+ border-color:var(--edge);
+ color-scheme:normal;
+}
+body.dark dialog.npc-info-dialog,
+body.dark dialog.npc-category-dialog,
+body.dark dialog.npc-player-wizard,
+body.dark .relationship-modal{color-scheme:dark}
+dialog.npc-info-dialog input,dialog.npc-info-dialog select,dialog.npc-info-dialog textarea,
+dialog.npc-info-dialog button,
+dialog.npc-category-dialog input,dialog.npc-category-dialog select,dialog.npc-category-dialog textarea,
+dialog.npc-category-dialog button,
+.relationship-modal input,.relationship-modal select,.relationship-modal textarea,.relationship-modal button{
+ background-color:var(--surface);color:var(--fg);border-color:var(--edge);
+}
 </style>
 </head>
 <body>
